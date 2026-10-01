@@ -24,3 +24,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "IntervalTimer"
 include(":app")
+include(":domain")
+include(":domain:repository")
+include(":domain:usecase")
+include(":feature")
+include(":data:remote")
+include(":data:local")
