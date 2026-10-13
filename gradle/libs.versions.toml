@@ -6,9 +6,10 @@ junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 appcompat = "1.6.1"
 material = "1.10.0"
-jetbrainsKotlinJvm = "2.2.10"
+jetbrainsKotlinJvm = "2.4.20"
 activityCompose = "1.13.0"
 composeBom = "2026.09.00"
+circuit = "0.39.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -23,10 +24,15 @@ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+circuit-foundation = { group = "com.slack.circuit", name = "circuit-foundation", version.ref = "circuit" }
+circuit-retained = { group = "com.slack.circuit", name = "circuit-retained", version.ref = "circuit" }
+circuit-overlay = { group = "com.slack.circuit", name = "circuit-overlay", version.ref = "circuit" }
+circuit-test = { group = "com.slack.circuit", name = "circuit-test", version.ref = "circuit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvm" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "jetbrainsKotlinJvm" }
+kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "jetbrainsKotlinJvm" }
 
