@@ -13,5 +13,6 @@ kotlin {
 }
 
 dependencies {
+    api(project(":domain:model"))
     api(project(":domain:repository"))
 }
