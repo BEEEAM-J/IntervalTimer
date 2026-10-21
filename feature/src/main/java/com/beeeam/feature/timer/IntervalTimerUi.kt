@@ -123,6 +123,7 @@ private fun TimerSetup(state: State, modifier: Modifier = Modifier) {
                 minuteValues = REST_MINUTES_VALUES,
             )
         }
+        TotalDurationSection(state = state)
         Spacer(modifier = Modifier.height(8.dp))
         Button(
             onClick = { state.eventSink(Event.Start) },
@@ -218,9 +219,62 @@ private fun PickerSuffix(text: String) {
     )
 }
 
+/** 총 운동 시간과 그 계산식, 휴식 적용 규칙을 보여준다. */
 @Composable
-private fun durationText(totalSeconds: Int): String =
-    stringResource(R.string.timer_duration_value, totalSeconds / 60, totalSeconds % 60)
+private fun TotalDurationSection(state: State) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.timer_total_duration_label),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = durationText(state.totalDuration.inWholeSeconds.toInt()),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        // 시작할 수 없는 설정이면 총 시간이 0 이라 계산식과 맞지 않으므로 숨긴다.
+        if (state.canStart) {
+            Text(
+                text = stringResource(
+                    R.string.timer_total_duration_formula,
+                    durationText(state.workSeconds),
+                    state.sets,
+                    durationText(state.restSeconds),
+                    state.sets - 1,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = stringResource(R.string.timer_total_duration_rule),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+        )
+    }
+}
+
+@Composable
+private fun durationText(totalSeconds: Int): String {
+    val hours = totalSeconds / 3600
+    val minutes = totalSeconds % 3600 / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        stringResource(R.string.timer_duration_hours_value, hours, minutes, seconds)
+    } else {
+        stringResource(R.string.timer_duration_value, minutes, seconds)
+    }
+}
 
 private fun twoDigits(value: Int): String = "%02d".format(value)
 
@@ -314,6 +368,7 @@ private fun TimerSetupPreview() {
                 sets = 1,
                 workSeconds = 30,
                 restSeconds = 30,
+                totalDuration = 30.seconds,
                 canStart = true,
                 session = null,
                 eventSink = {},
@@ -331,6 +386,7 @@ private fun TimerWorkPreview() {
                 sets = 1,
                 workSeconds = 30,
                 restSeconds = 30,
+                totalDuration = 30.seconds,
                 canStart = true,
                 session = Session(
                     progress = TimerProgress(

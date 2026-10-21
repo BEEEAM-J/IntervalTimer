@@ -65,6 +65,7 @@ class IntervalTimerPresenter(
             sets = sets,
             workSeconds = workSeconds,
             restSeconds = restSeconds,
+            totalDuration = inputConfig?.totalDuration ?: Duration.ZERO,
             canStart = inputConfig != null,
             session = session,
         ) { event ->
