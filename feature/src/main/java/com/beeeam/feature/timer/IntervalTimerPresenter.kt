@@ -25,9 +25,9 @@ class IntervalTimerPresenter(
 
     @Composable
     override fun present(): State {
-        var setsInput by rememberRetained { mutableStateOf("") }
-        var workSecondsInput by rememberRetained { mutableStateOf("") }
-        var restSecondsInput by rememberRetained { mutableStateOf("") }
+        var sets by rememberRetained { mutableStateOf(DEFAULT_SETS) }
+        var workSeconds by rememberRetained { mutableStateOf(DEFAULT_WORK_SECONDS) }
+        var restSeconds by rememberRetained { mutableStateOf(DEFAULT_REST_SECONDS) }
 
         // 진행 중인 타이머. config 가 null 이면 시작 전.
         var config by rememberRetained { mutableStateOf<IntervalConfig?>(null) }
@@ -52,7 +52,7 @@ class IntervalTimerPresenter(
             }
         }
 
-        val inputConfig = parseConfig(setsInput, workSecondsInput, restSecondsInput)
+        val inputConfig = toConfig(sets, workSeconds, restSeconds)
         val session = config?.let { running ->
             Session(
                 progress = running.progressAt(elapsed),
@@ -62,16 +62,16 @@ class IntervalTimerPresenter(
         }
 
         return State(
-            setsInput = setsInput,
-            workSecondsInput = workSecondsInput,
-            restSecondsInput = restSecondsInput,
+            sets = sets,
+            workSeconds = workSeconds,
+            restSeconds = restSeconds,
             canStart = inputConfig != null,
             session = session,
         ) { event ->
             when (event) {
-                is Event.SetsChanged -> setsInput = event.value.digitsOnly(MAX_SETS_LENGTH)
-                is Event.WorkSecondsChanged -> workSecondsInput = event.value.digitsOnly(MAX_SECONDS_LENGTH)
-                is Event.RestSecondsChanged -> restSecondsInput = event.value.digitsOnly(MAX_SECONDS_LENGTH)
+                is Event.SetsChanged -> sets = event.value
+                is Event.WorkSecondsChanged -> workSeconds = event.value
+                is Event.RestSecondsChanged -> restSeconds = event.value
                 Event.Start -> {
                     if (inputConfig == null) return@State
                     config = inputConfig
@@ -101,18 +101,14 @@ class IntervalTimerPresenter(
 
     private companion object {
         val TICK = 100.milliseconds
-        const val MAX_SETS_LENGTH = 3
-        const val MAX_SECONDS_LENGTH = 4
+        const val DEFAULT_SETS = 1
+        const val DEFAULT_WORK_SECONDS = 30
+        const val DEFAULT_REST_SECONDS = 30
 
-        fun String.digitsOnly(maxLength: Int): String = filter(Char::isDigit).take(maxLength)
-
-        /** 입력값이 유효하지 않으면 null. */
-        fun parseConfig(sets: String, workSeconds: String, restSeconds: String): IntervalConfig? {
-            val setCount = sets.toIntOrNull() ?: return null
-            val work = workSeconds.toIntOrNull() ?: return null
-            val rest = restSeconds.toIntOrNull() ?: return null
-            if (setCount < 1 || work < 1 || rest < 0) return null
-            return IntervalConfig(sets = setCount, workDuration = work.seconds, restDuration = rest.seconds)
+        /** 설정값이 유효하지 않으면 null. (예: 운동 시간 0초) */
+        fun toConfig(sets: Int, workSeconds: Int, restSeconds: Int): IntervalConfig? {
+            if (sets < 1 || workSeconds < 1 || restSeconds < 0) return null
+            return IntervalConfig(sets = sets, workDuration = workSeconds.seconds, restDuration = restSeconds.seconds)
         }
     }
 }

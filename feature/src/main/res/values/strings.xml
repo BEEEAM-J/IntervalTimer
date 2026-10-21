@@ -8,7 +8,10 @@
     <string name="timer_sets_suffix">세트</string>
     <string name="timer_work_label">운동 시간</string>
     <string name="timer_rest_label">휴식 시간</string>
+    <string name="timer_minutes_suffix">분</string>
     <string name="timer_seconds_suffix">초</string>
+    <string name="timer_sets_value">%1$d세트</string>
+    <string name="timer_duration_value">%1$d분 %2$d초</string>
     <string name="timer_start">운동 시작</string>
     <string name="timer_pause">일시정지</string>
     <string name="timer_resume">계속</string>
