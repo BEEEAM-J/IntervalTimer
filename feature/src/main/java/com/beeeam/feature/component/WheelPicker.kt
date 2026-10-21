@@ -1,4 +1,4 @@
-package com.beeeam.feature.timer
+package com.beeeam.feature.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
