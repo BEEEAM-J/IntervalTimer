@@ -55,8 +55,6 @@ import com.beeeam.feature.timer.component.cornerGlow
 import com.beeeam.feature.util.AccentOrange
 import com.beeeam.feature.util.AccentOrangeContainer
 import com.beeeam.feature.util.NeutralContainer
-import com.beeeam.feature.util.OnRecoveryContainer
-import com.beeeam.feature.util.RecoveryContainer
 import com.beeeam.feature.util.RestColor
 import com.beeeam.feature.util.SetupBackground
 import com.beeeam.feature.util.SetupTextPrimary
@@ -96,7 +94,7 @@ private fun PhaseCard(session: Session, eventSink: (Event) -> Unit, modifier: Mo
     val progress = session.progress
     val isWork = progress.phase == Phase.WORK
     val cardShape = RoundedCornerShape(16.dp)
-    val cardColor by animateColorAsState(targetValue = if (isWork) WorkColor else RecoveryContainer, label = "phaseCard")
+    val cardColor by animateColorAsState(targetValue = if (isWork) WorkColor else RestColor, label = "phaseCard")
 
     Column(
         modifier = modifier
@@ -311,8 +309,8 @@ private fun NextStepCard(session: Session) {
         )
         Phase.REST -> NextStep(
             iconRes = R.drawable.ic_self_improvement,
-            iconColor = OnRecoveryContainer,
-            iconBackground = RecoveryContainer,
+            iconColor = RestColor,
+            iconBackground = RestColor.copy(alpha = 0.12f),
             title = stringResource(R.string.timer_next_rest, duration),
             chip = stringResource(R.string.timer_next_rest_chip),
         )

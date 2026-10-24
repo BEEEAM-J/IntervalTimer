@@ -3,18 +3,15 @@ package com.beeeam.feature.util
 import androidx.compose.ui.graphics.Color
 
 internal val WorkColor = Color(0xFF2E7D32)
-internal val RestColor = Color(0xFF1565C0)
+// 흰 글씨를 올려도 읽히도록 채도와 밝기를 낮춘 하늘색
+internal val RestColor = Color(0xFF5E9CBA)
 internal val WorkContainer = Color(0xFFE8F5E9)
-internal val RecoveryContainer = Color(0xFF8FEEFC)
-internal val OnRecoveryContainer = Color(0xFF006D77)
 internal val NeutralContainer = Color(0xFFEFEDED)
 
 internal val AccentOrange = Color(0xFFFF5722)
 internal val AccentOrangeContainer = Color(0xFFFFECE6)
 internal val AccentOrangeDeep = Color(0xFFB02F00)
 internal val OnAccentOrangeContainer = Color(0xFF541200)
-internal val RecoveryTeal = Color(0xFF00CEE1)
-internal val RecoveryTealText = Color(0xFF008BA3)
 internal val SetupBackground = Color(0xFFFBF9F9)
 internal val SetupTextPrimary = Color(0xFF1B1C1C)
 internal val SetupTextSecondary = Color(0xFF5B4039)

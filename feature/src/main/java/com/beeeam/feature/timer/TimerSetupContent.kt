@@ -42,8 +42,7 @@ import com.beeeam.feature.timer.IntervalTimerScreen.State
 import com.beeeam.feature.timer.component.TotalDurationSection
 import com.beeeam.feature.util.AccentOrange
 import com.beeeam.feature.util.REST_MINUTES_VALUES
-import com.beeeam.feature.util.RecoveryTeal
-import com.beeeam.feature.util.RecoveryTealText
+import com.beeeam.feature.util.RestColor
 import com.beeeam.feature.util.SETS_VALUES
 import com.beeeam.feature.util.SetupBackground
 import com.beeeam.feature.util.WORK_MINUTES_VALUES
@@ -106,8 +105,7 @@ internal fun TimerSetupContent(state: State, modifier: Modifier = Modifier) {
             }
             SettingItem(
                 iconRes = R.drawable.ic_snooze,
-                accent = RecoveryTeal,
-                accentText = RecoveryTealText,
+                accent = RestColor,
                 title = stringResource(R.string.timer_rest_label),
                 description = stringResource(R.string.timer_rest_description),
                 chip = stringResource(R.string.timer_rest_chip),
@@ -118,7 +116,7 @@ internal fun TimerSetupContent(state: State, modifier: Modifier = Modifier) {
                 DurationPicker(
                     totalSeconds = state.restSeconds,
                     onTotalSecondsChange = { state.eventSink(Event.RestSecondsChanged(it)) },
-                    accent = RecoveryTeal,
+                    accent = RestColor,
                     minuteValues = REST_MINUTES_VALUES,
                 )
             }
