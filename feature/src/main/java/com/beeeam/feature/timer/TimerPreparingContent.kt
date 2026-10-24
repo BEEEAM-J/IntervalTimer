@@ -111,12 +111,6 @@ private fun PreparingHeader() {
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 10.dp),
         )
-        Text(
-            text = stringResource(R.string.timer_preparing_description),
-            color = Color.White.copy(alpha = 0.9f),
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 4.dp),
-        )
     }
 }
 

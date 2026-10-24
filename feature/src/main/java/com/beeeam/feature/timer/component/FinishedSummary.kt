@@ -71,30 +71,9 @@ internal fun FinishedSummary(
             )
         }
         HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SummaryLabel(iconRes = R.drawable.ic_flag_circle, text = stringResource(R.string.timer_finished_sets_label))
-            Text(
-                text = stringResource(R.string.timer_finished_sets_value, completedSets, totalSets),
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = stringResource(R.string.timer_finished_rate, completedSets * 100 / totalSets),
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .padding(start = 6.dp)
-                    .clip(CircleShape)
-                    .background(FinishHighlight.copy(alpha = 0.3f))
-                    .border(1.dp, FinishHighlight.copy(alpha = 0.45f), CircleShape)
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
-            )
-        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PhaseTotal(
-                label = stringResource(R.string.timer_finished_work_total),
+                label = stringResource(R.string.timer_work_chip),
                 iconRes = R.drawable.ic_bolt,
                 iconTint = Color(0xFFFFDBD1),
                 total = totalWorkDuration,

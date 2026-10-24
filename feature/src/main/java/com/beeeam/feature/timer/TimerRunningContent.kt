@@ -83,7 +83,7 @@ private fun PhaseCard(session: Session, eventSink: (Event) -> Unit, modifier: Mo
                 LiveBadge(text = stringResource(R.string.timer_work_badge))
             }
             Text(
-                text = stringResource(if (isWork) R.string.timer_work_title else R.string.timer_phase_rest),
+                text = stringResource(if (isWork) R.string.timer_work_chip else R.string.timer_phase_rest),
                 color = Color.White,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
