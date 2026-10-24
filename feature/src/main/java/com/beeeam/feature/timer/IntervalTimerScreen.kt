@@ -33,12 +33,14 @@ data object IntervalTimerScreen : ParcelableScreen {
      * @property totalSets 사용자가 설정한 총 세트 수.
      * @property totalDuration 사용자가 설정한 총 운동 시간.
      * @property remaining 준비 카운트다운의 남은 시간.
+     * @property progress 카운트다운의 남은 비율. 시작 시 1 에서 끝날 때 0 으로 줄어든다.
      * @property isGo 카운트다운이 끝나 "Go!" 를 보여주는 중인지 여부.
      */
     data class Preparation(
         val totalSets: Int,
         val totalDuration: Duration,
         val remaining: Duration,
+        val progress: Float,
         val isGo: Boolean,
     )
 

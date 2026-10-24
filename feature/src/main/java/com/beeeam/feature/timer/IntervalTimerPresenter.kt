@@ -90,6 +90,7 @@ class IntervalTimerPresenter(
                 totalSets = target.sets,
                 totalDuration = target.totalDuration,
                 remaining = remaining,
+                progress = (remaining / PREPARE_DURATION).toFloat(),
                 isGo = remaining == Duration.ZERO,
             )
         }
