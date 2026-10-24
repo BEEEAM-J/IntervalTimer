@@ -29,9 +29,6 @@
     <string name="timer_finished_badge">WORKOUT COMPLETED</string>
     <string name="timer_finished_hero">FINISH!</string>
     <string name="timer_finished_hero_caption">완주 성공</string>
-    <string name="timer_finished_sets_label">완주 세트</string>
-    <string name="timer_finished_sets_value">%1$d / %2$d</string>
-    <string name="timer_finished_rate">%1$d%% 달성</string>
     <string name="timer_finished_rest_total">휴식 시간</string>
     <string name="timer_work_badge">HIGH INTENSITY INTERVAL</string>
     <string name="timer_remaining_in_phase">남은 시간</string>

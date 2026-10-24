@@ -65,8 +65,6 @@ internal fun TimerFinishedContent(session: Session, eventSink: (Event) -> Unit, 
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FinishedSummary(
                     totalDuration = session.totalDuration,
-                    completedSets = session.progress.currentSet,
-                    totalSets = session.totalSets,
                     totalWorkDuration = session.totalWorkDuration,
                     totalRestDuration = session.totalRestDuration,
                 )
