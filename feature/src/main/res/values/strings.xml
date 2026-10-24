@@ -25,5 +25,9 @@
     <string name="timer_phase_rest">휴식 중</string>
     <string name="timer_phase_finished">운동 완료!</string>
     <string name="timer_set_progress">%1$d / %2$d 세트</string>
+    <string name="timer_preparing">운동 준비 중</string>
+    <string name="timer_preparing_total_duration">총 운동 시간 %1$s</string>
+    <string name="timer_go">Go!</string>
+    <string name="timer_skip_preparation">바로 시작</string>
     <string name="timer_total_remaining">전체 남은 시간 %1$s</string>
 </resources>

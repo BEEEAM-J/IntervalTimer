@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import com.beeeam.domain.model.IntervalConfig
 import com.beeeam.domain.model.Phase
 import com.beeeam.feature.timer.IntervalTimerScreen.Event
+import com.beeeam.feature.timer.IntervalTimerScreen.Preparation
 import com.beeeam.feature.timer.IntervalTimerScreen.Session
 import com.beeeam.feature.timer.IntervalTimerScreen.State
 import com.slack.circuit.retained.rememberRetained
@@ -29,6 +30,12 @@ class IntervalTimerPresenter(
         var workSeconds by rememberRetained { mutableStateOf(DEFAULT_WORK_SECONDS) }
         var restSeconds by rememberRetained { mutableStateOf(DEFAULT_REST_SECONDS) }
 
+        // 준비 카운트다운 중인 설정. null 이면 준비 중이 아님.
+        var preparing by rememberRetained { mutableStateOf<IntervalConfig?>(null) }
+        // 준비를 시작한 시점
+        var preparedAt by rememberRetained { mutableStateOf<TimeMark?>(null) }
+        var prepareElapsed by rememberRetained { mutableStateOf(Duration.ZERO) }
+
         // 진행 중인 타이머. config 가 null 이면 시작 전.
         var config by rememberRetained { mutableStateOf<IntervalConfig?>(null) }
         // 일시정지 전까지 누적된 경과 시간
@@ -36,6 +43,30 @@ class IntervalTimerPresenter(
         // 마지막으로 시작(재개)한 시점. null 이면 일시정지 상태.
         var resumedAt by rememberRetained { mutableStateOf<TimeMark?>(null) }
         var elapsed by rememberRetained { mutableStateOf(Duration.ZERO) }
+
+        fun startWorkout(target: IntervalConfig) {
+            preparing = null
+            preparedAt = null
+            prepareElapsed = Duration.ZERO
+            config = target
+            accumulated = Duration.ZERO
+            elapsed = Duration.ZERO
+            resumedAt = timeSource.markNow()
+        }
+
+        // 준비 카운트다운이 끝나면 "Go!" 를 잠시 보여준 뒤 운동을 시작한다.
+        LaunchedEffect(preparing, preparedAt) {
+            val target = preparing ?: return@LaunchedEffect
+            val mark = preparedAt ?: return@LaunchedEffect
+            while (true) {
+                prepareElapsed = mark.elapsedNow()
+                if (prepareElapsed >= PREPARE_DURATION + GO_DURATION) {
+                    startWorkout(target)
+                    break
+                }
+                delay(TICK)
+            }
+        }
 
         // 경과 시간을 TimeMark 기준으로 계산하므로, 탭 이동 등으로 잠시 멈췄다 돌아와도 실제 시간을 따라잡는다.
         LaunchedEffect(config, resumedAt) {
@@ -53,6 +84,15 @@ class IntervalTimerPresenter(
         }
 
         val inputConfig = toConfig(sets, workSeconds, restSeconds)
+        val preparation = preparing?.let { target ->
+            val remaining = (PREPARE_DURATION - prepareElapsed).coerceAtLeast(Duration.ZERO)
+            Preparation(
+                totalSets = target.sets,
+                totalDuration = target.totalDuration,
+                remaining = remaining,
+                isGo = remaining == Duration.ZERO,
+            )
+        }
         val session = config?.let { running ->
             Session(
                 progress = running.progressAt(elapsed),
@@ -67,6 +107,7 @@ class IntervalTimerPresenter(
             restSeconds = restSeconds,
             totalDuration = inputConfig?.totalDuration ?: Duration.ZERO,
             canStart = inputConfig != null,
+            preparation = preparation,
             session = session,
         ) { event ->
             when (event) {
@@ -75,10 +116,13 @@ class IntervalTimerPresenter(
                 is Event.RestSecondsChanged -> restSeconds = event.value
                 Event.Start -> {
                     if (inputConfig == null) return@State
-                    config = inputConfig
-                    accumulated = Duration.ZERO
-                    elapsed = Duration.ZERO
-                    resumedAt = timeSource.markNow()
+                    preparing = inputConfig
+                    prepareElapsed = Duration.ZERO
+                    preparedAt = timeSource.markNow()
+                }
+                Event.SkipPreparation -> {
+                    val target = preparing ?: return@State
+                    startWorkout(target)
                 }
                 Event.Pause -> {
                     val mark = resumedAt ?: return@State
@@ -91,6 +135,9 @@ class IntervalTimerPresenter(
                     resumedAt = timeSource.markNow()
                 }
                 Event.Stop -> {
+                    preparing = null
+                    preparedAt = null
+                    prepareElapsed = Duration.ZERO
                     config = null
                     accumulated = Duration.ZERO
                     elapsed = Duration.ZERO
@@ -102,6 +149,8 @@ class IntervalTimerPresenter(
 
     private companion object {
         val TICK = 100.milliseconds
+        val PREPARE_DURATION = 10.seconds
+        val GO_DURATION = 1.seconds
         const val DEFAULT_SETS = 1
         const val DEFAULT_WORK_SECONDS = 30
         const val DEFAULT_REST_SECONDS = 30

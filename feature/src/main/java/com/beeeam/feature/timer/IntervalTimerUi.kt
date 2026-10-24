@@ -37,9 +37,11 @@ import com.beeeam.feature.util.durationText
 import com.beeeam.feature.component.PickerSuffix
 import com.beeeam.feature.component.SettingItem
 import com.beeeam.feature.timer.component.TimerControls
+import com.beeeam.feature.timer.component.TimerPreparing
 import com.beeeam.feature.timer.component.TotalDurationSection
 import com.beeeam.feature.component.WheelPicker
 import com.beeeam.feature.timer.IntervalTimerScreen.Event
+import com.beeeam.feature.timer.IntervalTimerScreen.Preparation
 import com.beeeam.feature.timer.IntervalTimerScreen.Session
 import com.beeeam.feature.timer.IntervalTimerScreen.State
 import com.beeeam.feature.util.REST_MINUTES_VALUES
@@ -52,11 +54,12 @@ import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun IntervalTimerUi(state: State, modifier: Modifier = Modifier) {
+    val preparation = state.preparation
     val session = state.session
-    if (session == null) {
-        TimerSetup(state = state, modifier = modifier)
-    } else {
-        TimerRunning(session = session, eventSink = state.eventSink, modifier = modifier)
+    when {
+        preparation != null -> TimerPreparing(preparation = preparation, eventSink = state.eventSink, modifier = modifier)
+        session != null -> TimerRunning(session = session, eventSink = state.eventSink, modifier = modifier)
+        else -> TimerSetup(state = state, modifier = modifier)
     }
 }
 
@@ -195,6 +198,7 @@ private fun TimerSetupPreview() {
                 restSeconds = 30,
                 totalDuration = 30.seconds,
                 canStart = true,
+                preparation = null,
                 session = null,
                 eventSink = {},
             ),
@@ -213,6 +217,7 @@ private fun TimerWorkPreview() {
                 restSeconds = 30,
                 totalDuration = 30.seconds,
                 canStart = true,
+                preparation = null,
                 session = Session(
                     progress = TimerProgress(
                         phase = Phase.WORK,
@@ -224,6 +229,30 @@ private fun TimerWorkPreview() {
                     totalSets = 5,
                     isPaused = false,
                 ),
+                eventSink = {},
+            ),
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TimerPreparingPreview() {
+    MaterialTheme {
+        IntervalTimerUi(
+            State(
+                sets = 5,
+                workSeconds = 30,
+                restSeconds = 10,
+                totalDuration = 190.seconds,
+                canStart = true,
+                preparation = Preparation(
+                    totalSets = 5,
+                    totalDuration = 190.seconds,
+                    remaining = 7.seconds,
+                    isGo = false,
+                ),
+                session = null,
                 eventSink = {},
             ),
         )

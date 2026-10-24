@@ -7,9 +7,12 @@ import kotlin.time.Duration
 
 internal fun twoDigits(value: Int): String = "%02d".format(value)
 
+/** 초 단위로 올림한 값. (29.4초 → 30) */
+internal fun Duration.inWholeSecondsCeil(): Long = (inWholeMilliseconds + 999) / 1000
+
 /** 남은 시간을 올림한 초 단위로 mm:ss 형식 변환. (29.4초 → 00:30) */
 internal fun Duration.toClockText(): String {
-    val totalSeconds = (inWholeMilliseconds + 999) / 1000
+    val totalSeconds = inWholeSecondsCeil()
     return "%02d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
