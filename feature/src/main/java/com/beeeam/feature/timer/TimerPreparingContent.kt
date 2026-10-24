@@ -4,12 +4,10 @@ import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,14 +34,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -54,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import com.beeeam.feature.R
 import com.beeeam.feature.timer.IntervalTimerScreen.Event
 import com.beeeam.feature.timer.IntervalTimerScreen.Preparation
+import com.beeeam.feature.timer.component.ProgressRing
+import com.beeeam.feature.timer.component.cornerGlow
 import com.beeeam.feature.util.AccentOrange
 import com.beeeam.feature.util.AccentOrangeDeep
 import com.beeeam.feature.util.OnAccentOrangeContainer
@@ -79,27 +74,7 @@ internal fun TimerPreparingContent(preparation: Preparation, eventSink: (Event) 
                 .shadow(elevation = 12.dp, shape = cardShape)
                 .clip(cardShape)
                 .background(AccentOrange)
-                .drawBehind {
-                    // 카드 모서리의 은은한 빛 / 그림자 장식
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.12f), Color.Transparent),
-                            center = Offset(size.width, 0f),
-                            radius = 180.dp.toPx(),
-                        ),
-                        radius = 180.dp.toPx(),
-                        center = Offset(size.width, 0f),
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.10f), Color.Transparent),
-                            center = Offset(0f, size.height),
-                            radius = 200.dp.toPx(),
-                        ),
-                        radius = 200.dp.toPx(),
-                        center = Offset(0f, size.height),
-                    )
-                }
+                .cornerGlow(lightOnLeft = false)
                 .padding(horizontal = 20.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
@@ -167,38 +142,13 @@ private fun PreparingHeader() {
 /** 남은 비율만큼 줄어드는 원형 링과 가운데 카운트다운 숫자. */
 @Composable
 private fun CountdownRing(preparation: Preparation) {
-    // Presenter 는 일정 간격으로만 갱신하므로 그 사이를 보간해 링이 끊기지 않고 줄어들게 한다.
-    val progress by animateFloatAsState(
-        targetValue = preparation.progress,
-        animationSpec = tween(durationMillis = 100, easing = LinearEasing),
-        label = "countdownProgress",
-    )
-
-    Box(
-        modifier = Modifier
-            .padding(vertical = 16.dp)
-            .size(224.dp),
-        contentAlignment = Alignment.Center,
+    ProgressRing(
+        progress = preparation.progress,
+        size = 224.dp,
+        strokeWidth = 9.dp,
+        trackAlpha = 0.2f,
+        modifier = Modifier.padding(vertical = 16.dp),
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 9.dp.toPx()
-            val inset = strokeWidth / 2
-            val arcSize = size.copy(width = size.width - strokeWidth, height = size.height - strokeWidth)
-            drawCircle(
-                color = Color.White.copy(alpha = 0.2f),
-                radius = (size.minDimension - strokeWidth) / 2,
-                style = Stroke(width = strokeWidth),
-            )
-            drawArc(
-                color = Color.White,
-                startAngle = -90f,
-                sweepAngle = 360f * progress,
-                useCenter = false,
-                topLeft = Offset(inset, inset),
-                size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-            )
-        }
         Text(
             text = if (preparation.isGo) {
                 stringResource(R.string.timer_go)

@@ -1,5 +1,6 @@
 package com.beeeam.feature.timer
 
+import com.beeeam.domain.model.Phase
 import com.beeeam.domain.model.TimerProgress
 import com.slack.circuit.runtime.CircuitUiEvent
 import com.slack.circuit.runtime.CircuitUiState
@@ -47,11 +48,17 @@ data object IntervalTimerScreen : ParcelableScreen {
     /**
      * @property totalSets 전체 세트 수.
      * @property isPaused 일시정지 여부.
+     * @property phaseProgress 현재 페이즈의 남은 비율. 페이즈 시작 시 1 에서 끝날 때 0 으로 줄어든다.
+     * @property nextPhase 현재 페이즈가 끝난 뒤 이어질 페이즈. 마지막 세트 운동 중이면 [Phase.FINISHED].
+     * @property nextPhaseDuration [nextPhase] 의 길이. [Phase.FINISHED] 이면 0.
      */
     data class Session(
         val progress: TimerProgress,
         val totalSets: Int,
         val isPaused: Boolean,
+        val phaseProgress: Float,
+        val nextPhase: Phase,
+        val nextPhaseDuration: Duration,
     )
 
     sealed interface Event : CircuitUiEvent {

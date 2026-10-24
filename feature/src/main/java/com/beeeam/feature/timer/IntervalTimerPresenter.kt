@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.beeeam.domain.model.IntervalConfig
 import com.beeeam.domain.model.Phase
+import com.beeeam.domain.model.TimerProgress
 import com.beeeam.feature.timer.IntervalTimerScreen.Event
 import com.beeeam.feature.timer.IntervalTimerScreen.Preparation
 import com.beeeam.feature.timer.IntervalTimerScreen.Session
@@ -95,10 +96,16 @@ class IntervalTimerPresenter(
             )
         }
         val session = config?.let { running ->
+            val progress = running.progressAt(elapsed)
+            val phaseDuration = running.durationOf(progress.phase)
+            val nextPhase = running.nextPhaseAfter(progress)
             Session(
-                progress = running.progressAt(elapsed),
+                progress = progress,
                 totalSets = running.sets,
                 isPaused = resumedAt == null,
+                phaseProgress = if (phaseDuration.isPositive()) (progress.remainingInPhase / phaseDuration).toFloat() else 0f,
+                nextPhase = nextPhase,
+                nextPhaseDuration = running.durationOf(nextPhase),
             )
         }
 
@@ -155,6 +162,24 @@ class IntervalTimerPresenter(
         const val DEFAULT_SETS = 1
         const val DEFAULT_WORK_SECONDS = 30
         const val DEFAULT_REST_SECONDS = 30
+
+        /** [phase] 한 구간의 길이. */
+        fun IntervalConfig.durationOf(phase: Phase): Duration = when (phase) {
+            Phase.WORK -> workDuration
+            Phase.REST -> restDuration
+            Phase.FINISHED -> Duration.ZERO
+        }
+
+        /** [progress] 의 페이즈가 끝난 뒤 이어질 페이즈. 휴식 시간이 0 이면 다음 세트 운동으로 바로 넘어간다. */
+        fun IntervalConfig.nextPhaseAfter(progress: TimerProgress): Phase = when (progress.phase) {
+            Phase.WORK -> when {
+                progress.currentSet >= sets -> Phase.FINISHED
+                restDuration.isPositive() -> Phase.REST
+                else -> Phase.WORK
+            }
+            Phase.REST -> Phase.WORK
+            Phase.FINISHED -> Phase.FINISHED
+        }
 
         /** 설정값이 유효하지 않으면 null. (예: 운동 시간 0초) */
         fun toConfig(sets: Int, workSeconds: Int, restSeconds: Int): IntervalConfig? {

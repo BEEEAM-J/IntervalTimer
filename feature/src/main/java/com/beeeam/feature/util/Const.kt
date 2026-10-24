@@ -4,6 +4,10 @@ import androidx.compose.ui.graphics.Color
 
 internal val WorkColor = Color(0xFF2E7D32)
 internal val RestColor = Color(0xFF1565C0)
+internal val WorkContainer = Color(0xFFE8F5E9)
+internal val RecoveryContainer = Color(0xFF8FEEFC)
+internal val OnRecoveryContainer = Color(0xFF006D77)
+internal val NeutralContainer = Color(0xFFEFEDED)
 
 internal val AccentOrange = Color(0xFFFF5722)
 internal val AccentOrangeContainer = Color(0xFFFFECE6)
