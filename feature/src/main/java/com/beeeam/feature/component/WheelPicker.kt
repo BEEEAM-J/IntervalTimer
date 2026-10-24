@@ -91,7 +91,9 @@ internal fun WheelPicker(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(itemHeight)
-                        .clickable { scope.launch { listState.animateScrollToItem(index) } },
+                        .clickable(interactionSource = null, indication = null) {
+                            scope.launch { listState.animateScrollToItem(index) }
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
