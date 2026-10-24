@@ -1,43 +1,24 @@
 package com.beeeam.feature.timer
 
-import androidx.annotation.DrawableRes
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -50,18 +31,16 @@ import com.beeeam.domain.model.TimerProgress
 import com.beeeam.feature.R
 import com.beeeam.feature.timer.IntervalTimerScreen.Event
 import com.beeeam.feature.timer.IntervalTimerScreen.Session
+import com.beeeam.feature.timer.component.CardPrimaryButton
+import com.beeeam.feature.timer.component.CardSecondaryButton
+import com.beeeam.feature.timer.component.LiveBadge
+import com.beeeam.feature.timer.component.NextStepCard
 import com.beeeam.feature.timer.component.ProgressRing
-import com.beeeam.feature.timer.component.cornerGlow
-import com.beeeam.feature.util.AccentOrange
-import com.beeeam.feature.util.AccentOrangeContainer
-import com.beeeam.feature.util.NeutralContainer
+import com.beeeam.feature.timer.component.TimerCard
 import com.beeeam.feature.util.RestColor
 import com.beeeam.feature.util.SetupBackground
 import com.beeeam.feature.util.SetupTextPrimary
-import com.beeeam.feature.util.SetupTextSecondary
 import com.beeeam.feature.util.WorkColor
-import com.beeeam.feature.util.WorkContainer
-import com.beeeam.feature.util.durationText
 import com.beeeam.feature.util.toClockText
 import kotlin.time.Duration.Companion.seconds
 
@@ -85,7 +64,7 @@ internal fun TimerRunningContent(session: Session, eventSink: (Event) -> Unit, m
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         PhaseCard(session = session, eventSink = eventSink, modifier = Modifier.weight(1f))
-        NextStepCard(session = session)
+        NextStepCard(nextPhase = session.nextPhase, nextPhaseDuration = session.nextPhaseDuration)
     }
 }
 
@@ -93,20 +72,9 @@ internal fun TimerRunningContent(session: Session, eventSink: (Event) -> Unit, m
 private fun PhaseCard(session: Session, eventSink: (Event) -> Unit, modifier: Modifier = Modifier) {
     val progress = session.progress
     val isWork = progress.phase == Phase.WORK
-    val cardShape = RoundedCornerShape(16.dp)
     val cardColor by animateColorAsState(targetValue = if (isWork) WorkColor else RestColor, label = "phaseCard")
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .shadow(elevation = 12.dp, shape = cardShape)
-            .clip(cardShape)
-            .background(cardColor)
-            .cornerGlow(lightOnLeft = true)
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
+    TimerCard(color = cardColor, lightOnLeft = true, modifier = modifier, verticalPadding = 24.dp) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -145,41 +113,6 @@ private fun PhaseCard(session: Session, eventSink: (Event) -> Unit, modifier: Mo
             SessionSummary(session = session)
             RunningControls(isPaused = session.isPaused, eventSink = eventSink)
         }
-    }
-}
-
-/** 깜빡이며 퍼지는 점이 붙은 상태 배지. */
-@Composable
-private fun LiveBadge(text: String) {
-    val ping = rememberInfiniteTransition(label = "livePing")
-    val pingProgress by ping.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(durationMillis = 1000, easing = LinearOutSlowInEasing), RepeatMode.Restart),
-        label = "livePingProgress",
-    )
-
-    Row(
-        modifier = Modifier
-            .background(Color.White.copy(alpha = 0.2f), CircleShape)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .graphicsLayer {
-                        scaleX = 1f + pingProgress
-                        scaleY = 1f + pingProgress
-                        alpha = 1f - pingProgress
-                    }
-                    .background(Color.White, CircleShape),
-            )
-            Box(modifier = Modifier.size(10.dp).background(Color.White, CircleShape))
-        }
-        Text(text = text, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp)
     }
 }
 
@@ -246,139 +179,25 @@ private fun SessionSummary(session: Session) {
 
 @Composable
 private fun RunningControls(isPaused: Boolean, eventSink: (Event) -> Unit) {
-    val buttonShape = RoundedCornerShape(16.dp)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Button(
+        CardPrimaryButton(
+            text = stringResource(if (isPaused) R.string.timer_resume else R.string.timer_pause),
+            iconRes = if (isPaused) R.drawable.ic_play_arrow else R.drawable.ic_pause,
+            contentColor = SetupTextPrimary,
             onClick = { eventSink(if (isPaused) Event.Resume else Event.Pause) },
-            shape = buttonShape,
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = SetupTextPrimary),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
-            modifier = Modifier
-                .weight(1f)
-                .height(56.dp),
-        ) {
-            Icon(
-                painter = painterResource(if (isPaused) R.drawable.ic_play_arrow else R.drawable.ic_pause),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = stringResource(if (isPaused) R.string.timer_resume else R.string.timer_pause),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-        OutlinedButton(
+            modifier = Modifier.weight(1f),
+        )
+        CardSecondaryButton(
+            text = stringResource(R.string.timer_stop),
+            iconRes = R.drawable.ic_stop,
             onClick = { eventSink(Event.Stop) },
-            shape = buttonShape,
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.White.copy(alpha = 0.2f),
-                contentColor = Color.White,
-            ),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-            modifier = Modifier
-                .weight(1f)
-                .height(56.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_stop),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.timer_stop), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-        }
+            modifier = Modifier.weight(1f),
+        )
     }
 }
-
-/** 현재 페이즈가 끝난 뒤 이어질 단계를 미리 알려주는 카드. */
-@Composable
-private fun NextStepCard(session: Session) {
-    val duration = durationText(session.nextPhaseDuration.inWholeSeconds.toInt())
-    val step = when (session.nextPhase) {
-        Phase.WORK -> NextStep(
-            iconRes = R.drawable.ic_tab_record,
-            iconColor = WorkColor,
-            iconBackground = WorkContainer,
-            title = stringResource(R.string.timer_next_work, duration),
-            chip = stringResource(R.string.timer_next_work_chip),
-        )
-        Phase.REST -> NextStep(
-            iconRes = R.drawable.ic_self_improvement,
-            iconColor = RestColor,
-            iconBackground = RestColor.copy(alpha = 0.12f),
-            title = stringResource(R.string.timer_next_rest, duration),
-            chip = stringResource(R.string.timer_next_rest_chip),
-        )
-        Phase.FINISHED -> NextStep(
-            iconRes = R.drawable.ic_flag,
-            iconColor = AccentOrange,
-            iconBackground = AccentOrangeContainer,
-            title = stringResource(R.string.timer_next_finished),
-            chip = stringResource(R.string.timer_next_finished_chip),
-        )
-    }
-
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color.White,
-        shadowElevation = 1.dp,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(step.iconBackground, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(step.iconRes),
-                    contentDescription = null,
-                    tint = step.iconColor,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.timer_next_step_label),
-                    color = SetupTextSecondary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(text = step.title, color = SetupTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
-            Text(
-                text = step.chip,
-                color = SetupTextSecondary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .background(NeutralContainer, CircleShape)
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-            )
-        }
-    }
-}
-
-private data class NextStep(
-    @DrawableRes val iconRes: Int,
-    val iconColor: Color,
-    val iconBackground: Color,
-    val title: String,
-    val chip: String,
-)
 
 @Preview(showBackground = true)
 @Composable
