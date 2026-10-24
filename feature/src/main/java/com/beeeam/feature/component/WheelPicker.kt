@@ -1,19 +1,15 @@
 package com.beeeam.feature.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,27 +21,40 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.beeeam.feature.util.AccentOrange
+import com.beeeam.feature.util.SetupTextSecondary
+import com.beeeam.feature.util.unitValueText
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
+/** 휠 한 줄의 높이. 선택된 줄의 하이라이트 밴드도 이 높이에 맞춘다. */
+internal val PickerItemHeight = 48.dp
+
 /**
  * 위아래로 스크롤해 [values] 중 하나를 고르는 휠 형태의 Picker.
  * 스크롤이 멈춘 시점에 가운데에 위치한 값을 [onValueChange] 로 전달한다.
+ * 선택된 줄의 배경은 그리지 않으므로, 필요하면 바깥에서 [PickerItemHeight] 높이의 밴드를 깔아준다.
+ *
+ * @param unit 각 값 옆에 붙는 단위. (분, 초, 세트)
  */
 @Composable
 internal fun WheelPicker(
     value: Int,
     onValueChange: (Int) -> Unit,
     values: List<Int>,
+    unit: String,
+    accent: Color,
     modifier: Modifier = Modifier,
     format: (Int) -> String = Int::toString,
-    width: Dp = 64.dp,
-    itemHeight: Dp = 44.dp,
-    visibleCount: Int = 5,
+    itemHeight: Dp = PickerItemHeight,
+    visibleCount: Int = 3,
 ) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = values.indexOfClosest(value))
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
@@ -67,17 +76,9 @@ internal fun WheelPicker(
     }
 
     Box(
-        modifier = modifier
-            .width(width)
-            .height(itemHeight * visibleCount),
+        modifier = modifier.height(itemHeight * visibleCount),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(itemHeight)
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
-        )
         LazyColumn(
             state = listState,
             flingBehavior = flingBehavior,
@@ -85,7 +86,7 @@ internal fun WheelPicker(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             itemsIndexed(values) { index, item ->
-                val distance = abs(index - centerIndex)
+                val selected = index == centerIndex
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -94,14 +95,19 @@ internal fun WheelPicker(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = format(item),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = if (distance == 0) FontWeight.Bold else FontWeight.Normal,
-                        color = if (distance == 0) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = if (distance == 1) 0.5f else 0.25f)
-                        },
+                        text = unitValueText(
+                            parts = listOf(format(item) to " $unit"),
+                            numberStyle = SpanStyle(
+                                fontSize = if (selected) 20.sp else 16.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                fontFeatureSettings = "tnum",
+                            ),
+                            unitStyle = SpanStyle(
+                                fontSize = if (selected) 16.sp else 12.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            ),
+                        ),
+                        color = if (selected) accent else SetupTextSecondary.copy(alpha = 0.3f),
                     )
                 }
             }
