@@ -1,4 +1,4 @@
-package com.beeeam.feature.timer.component
+package com.beeeam.feature.timer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beeeam.feature.R
@@ -28,10 +29,11 @@ import com.beeeam.feature.timer.IntervalTimerScreen.Preparation
 import com.beeeam.feature.util.PrepareColor
 import com.beeeam.feature.util.durationText
 import com.beeeam.feature.util.inWholeSecondsCeil
+import kotlin.time.Duration.Companion.seconds
 
 /** 운동 시작 전 준비 카운트다운 화면. 카운트다운이 끝나면 "Go!" 를 보여준다. */
 @Composable
-internal fun TimerPreparing(preparation: Preparation, eventSink: (Event) -> Unit, modifier: Modifier = Modifier) {
+internal fun TimerPreparingContent(preparation: Preparation, eventSink: (Event) -> Unit, modifier: Modifier = Modifier) {
     val contentColor = Color.White
 
     Column(
@@ -101,5 +103,21 @@ internal fun TimerPreparing(preparation: Preparation, eventSink: (Event) -> Unit
                 Text(stringResource(R.string.timer_stop), fontSize = 18.sp)
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TimerPreparingContentPreview() {
+    MaterialTheme {
+        TimerPreparingContent(
+            preparation = Preparation(
+                totalSets = 5,
+                totalDuration = 190.seconds,
+                remaining = 7.seconds,
+                isGo = false,
+            ),
+            eventSink = {},
+        )
     }
 }
