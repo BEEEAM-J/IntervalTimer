@@ -66,14 +66,14 @@ import com.beeeam.feature.util.toClockText
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * 운동 중 / 휴식 중 / 운동 완료 화면.
+ * 운동 중 / 휴식 중 화면. 모든 세트를 마치면 [TimerFinishedContent] 를 보여준다.
  *
  * 운동과 휴식은 카드 색과 문구만 다르므로 하나의 카드로 그려, 페이즈 전환 시 카드 색이 자연스럽게 바뀌도록 한다.
  */
 @Composable
 internal fun TimerRunningContent(session: Session, eventSink: (Event) -> Unit, modifier: Modifier = Modifier) {
     if (session.progress.phase == Phase.FINISHED) {
-        TimerFinished(eventSink = eventSink, modifier = modifier)
+        TimerFinishedContent(session = session, eventSink = eventSink, modifier = modifier)
         return
     }
 
@@ -380,30 +380,6 @@ private data class NextStep(
     val chip: String,
 )
 
-/** 모든 세트를 마친 화면. */
-@Composable
-private fun TimerFinished(eventSink: (Event) -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(SetupBackground)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = stringResource(R.string.timer_phase_finished),
-            color = SetupTextPrimary,
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(modifier = Modifier.height(48.dp))
-        OutlinedButton(onClick = { eventSink(Event.Stop) }) {
-            Text(stringResource(R.string.timer_done))
-        }
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 private fun TimerRunningContentPreview() {
@@ -422,6 +398,9 @@ private fun TimerRunningContentPreview() {
                 phaseProgress = 0.2f,
                 nextPhase = Phase.REST,
                 nextPhaseDuration = 60.seconds,
+                totalDuration = 690.seconds,
+                totalWorkDuration = 450.seconds,
+                totalRestDuration = 240.seconds,
             ),
             eventSink = {},
         )

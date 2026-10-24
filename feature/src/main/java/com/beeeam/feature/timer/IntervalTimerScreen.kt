@@ -51,6 +51,9 @@ data object IntervalTimerScreen : ParcelableScreen {
      * @property phaseProgress 현재 페이즈의 남은 비율. 페이즈 시작 시 1 에서 끝날 때 0 으로 줄어든다.
      * @property nextPhase 현재 페이즈가 끝난 뒤 이어질 페이즈. 마지막 세트 운동 중이면 [Phase.FINISHED].
      * @property nextPhaseDuration [nextPhase] 의 길이. [Phase.FINISHED] 이면 0.
+     * @property totalDuration 전체 운동 시간. (운동 + 휴식)
+     * @property totalWorkDuration 모든 세트의 운동 시간 합계.
+     * @property totalRestDuration 모든 휴식 시간 합계.
      */
     data class Session(
         val progress: TimerProgress,
@@ -59,6 +62,9 @@ data object IntervalTimerScreen : ParcelableScreen {
         val phaseProgress: Float,
         val nextPhase: Phase,
         val nextPhaseDuration: Duration,
+        val totalDuration: Duration,
+        val totalWorkDuration: Duration,
+        val totalRestDuration: Duration,
     )
 
     sealed interface Event : CircuitUiEvent {

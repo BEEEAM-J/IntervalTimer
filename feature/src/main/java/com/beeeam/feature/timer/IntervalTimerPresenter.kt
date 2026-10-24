@@ -106,6 +106,9 @@ class IntervalTimerPresenter(
                 phaseProgress = if (phaseDuration.isPositive()) (progress.remainingInPhase / phaseDuration).toFloat() else 0f,
                 nextPhase = nextPhase,
                 nextPhaseDuration = running.durationOf(nextPhase),
+                totalDuration = running.totalDuration,
+                totalWorkDuration = running.workDuration * running.sets,
+                totalRestDuration = running.restDuration * (running.sets - 1),
             )
         }
 
