@@ -10,6 +10,7 @@ jetbrainsKotlinJvm = "2.4.20"
 activityCompose = "1.13.0"
 composeBom = "2026.09.00"
 circuit = "0.39.0"
+metro = "1.5.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -35,4 +36,5 @@ jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrai
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "jetbrainsKotlinJvm" }
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "jetbrainsKotlinJvm" }
+metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 
