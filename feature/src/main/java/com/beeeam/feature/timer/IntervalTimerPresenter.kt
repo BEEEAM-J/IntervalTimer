@@ -12,8 +12,11 @@ import com.beeeam.feature.timer.IntervalTimerScreen.Event
 import com.beeeam.feature.timer.IntervalTimerScreen.Preparation
 import com.beeeam.feature.timer.IntervalTimerScreen.Session
 import com.beeeam.feature.timer.IntervalTimerScreen.State
+import com.slack.circuit.codegen.annotations.CircuitInject
 import com.slack.circuit.retained.rememberRetained
 import com.slack.circuit.runtime.presenter.Presenter
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -21,6 +24,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
+// timeSource 는 그래프에 바인딩이 없으면 기본값(Monotonic)을 쓰고, 테스트에서는 TestTimeSource 를 넣을 수 있다.
+@CircuitInject(IntervalTimerScreen::class, AppScope::class)
+@Inject
 class IntervalTimerPresenter(
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : Presenter<State> {

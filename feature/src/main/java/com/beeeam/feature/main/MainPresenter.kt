@@ -5,8 +5,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.slack.circuit.codegen.annotations.CircuitInject
 import com.slack.circuit.runtime.presenter.Presenter
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
 
+@CircuitInject(MainScreen::class, AppScope::class)
+@Inject
 class MainPresenter : Presenter<MainScreen.State> {
     @Composable
     override fun present(): MainScreen.State {

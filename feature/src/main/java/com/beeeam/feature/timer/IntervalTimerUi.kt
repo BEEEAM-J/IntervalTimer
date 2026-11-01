@@ -4,8 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.beeeam.feature.main.HideBottomBarEffect
 import com.beeeam.feature.timer.IntervalTimerScreen.State
+import com.slack.circuit.codegen.annotations.CircuitInject
+import dev.zacsweers.metro.AppScope
 
 /** 타이머 상태에 따라 설정 / 준비 중 / 진행 중 화면을 보여준다. */
+@CircuitInject(IntervalTimerScreen::class, AppScope::class)
 @Composable
 fun IntervalTimerUi(state: State, modifier: Modifier = Modifier) {
     val preparation = state.preparation

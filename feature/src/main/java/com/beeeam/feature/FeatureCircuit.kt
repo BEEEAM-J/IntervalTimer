@@ -1,11 +1,12 @@
 package com.beeeam.feature
 
-import androidx.compose.ui.res.stringResource
 import com.beeeam.feature.history.RunningHistoryScreen
+import com.beeeam.feature.history.RunningHistoryUi
 import com.beeeam.feature.main.MainPresenter
 import com.beeeam.feature.main.MainScreen
 import com.beeeam.feature.main.MainUi
 import com.beeeam.feature.record.RunningRecordScreen
+import com.beeeam.feature.record.RunningRecordUi
 import com.beeeam.feature.timer.IntervalTimerPresenter
 import com.beeeam.feature.timer.IntervalTimerScreen
 import com.beeeam.feature.timer.IntervalTimerUi
@@ -20,10 +21,6 @@ fun Circuit.Builder.addFeatureScreens(): Circuit.Builder = apply {
     addPresenter<IntervalTimerScreen, IntervalTimerScreen.State> { _, _, _ -> IntervalTimerPresenter() }
     addUi<IntervalTimerScreen, IntervalTimerScreen.State> { state, modifier -> IntervalTimerUi(state, modifier) }
 
-    addStaticUi<RunningRecordScreen, CircuitUiState> { _, modifier ->
-        PlaceholderUi(title = stringResource(R.string.tab_record), modifier = modifier)
-    }
-    addStaticUi<RunningHistoryScreen, CircuitUiState> { _, modifier ->
-        PlaceholderUi(title = stringResource(R.string.tab_history), modifier = modifier)
-    }
+    addStaticUi<RunningRecordScreen, CircuitUiState> { _, modifier -> RunningRecordUi(modifier) }
+    addStaticUi<RunningHistoryScreen, CircuitUiState> { _, modifier -> RunningHistoryUi(modifier) }
 }
