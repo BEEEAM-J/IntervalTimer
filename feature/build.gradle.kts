@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.metro)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -25,6 +27,11 @@ android {
 
 }
 
+ksp {
+    // @CircuitInject 로 생성되는 Presenter/Ui 팩토리를 Metro 멀티바인딩(@ContributesIntoSet)으로 만든다.
+    arg("circuit.codegen.mode", "metro")
+}
+
 dependencies {
     implementation(project(":domain:model"))
 
@@ -38,6 +45,8 @@ dependencies {
     implementation(libs.circuit.foundation)
     implementation(libs.circuit.retained)
     implementation(libs.circuit.overlay)
+    implementation(libs.circuit.codegen.annotations)
+    ksp(libs.circuit.codegen)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
     testImplementation(libs.circuit.test)

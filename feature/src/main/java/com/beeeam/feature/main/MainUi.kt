@@ -14,9 +14,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.beeeam.feature.main.component.MainBottomBar
+import com.slack.circuit.codegen.annotations.CircuitInject
 import com.slack.circuit.foundation.CircuitContent
 import com.slack.circuit.retained.rememberRetainedStateHolder
+import dev.zacsweers.metro.AppScope
 
+@CircuitInject(MainScreen::class, AppScope::class)
 @Composable
 fun MainUi(state: MainScreen.State, modifier: Modifier = Modifier) {
     // 탭을 이동해도 각 화면의 retained 상태(진행 중인 타이머 등)를 유지한다.
