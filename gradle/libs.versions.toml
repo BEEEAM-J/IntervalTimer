@@ -12,6 +12,7 @@ composeBom = "2026.09.00"
 circuit = "0.39.0"
 metro = "1.5.0"
 ksp = "2.3.13"
+leakcanaryStudio = "1.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,6 +33,7 @@ circuit-overlay = { group = "com.slack.circuit", name = "circuit-overlay", versi
 circuit-test = { group = "com.slack.circuit", name = "circuit-test", version.ref = "circuit" }
 circuit-codegen = { group = "com.slack.circuit", name = "circuit-codegen", version.ref = "circuit" }
 circuit-codegen-annotations = { group = "com.slack.circuit", name = "circuit-codegen-annotations", version.ref = "circuit" }
+leakcanary-studio = { group = "com.android.tools.studio.leakcanary", name = "leakcanary", version.ref = "leakcanaryStudio" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
