@@ -8,6 +8,7 @@
 - 아키텍처: Circuit (Screen / Presenter / Ui, 단방향 데이터 흐름) + 멀티 모듈 클린 아키텍처
 - 비동기: Kotlin Coroutines / Flow
 - 의존성 주입: Metro (Circuit codegen과 KSP로 연동)
+- 메모리 누수 감지: LeakCanary (debug 빌드 전용, Android Studio Profiler 연동 라이브러리 `com.android.tools.studio.leakcanary:leakcanary`로 추가)
 - minSdk 24 / targetSdk·compileSdk 37 / Java 11
 
 ## 빌드 및 테스트 명령어
@@ -19,6 +20,13 @@
 - 린트: `./gradlew lint`
 
 Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니다.
+
+### 메모리 누수 확인
+- Android Studio Profiler에서 debug 앱 프로세스를 선택하고 **Find Memory Leaks with LeakCanary** task를 실행합니다.
+  - 시작 시점은 **Now**(실행 중인 프로세스에 연결)를 사용합니다. 연동 라이브러리가 앱에 들어 있으므로 Process start가 필요 없습니다.
+  - 단일 Activity 구조라 탭 전환만으로는 종료되는 Activity가 없으므로, **화면 회전**을 반드시 포함합니다. 회전할 때마다 `MainActivity`가 다시 생성되어 이전 Activity의 회수 여부를 확인할 수 있습니다.
+- debug 앱은 평소에도 `leakcanary-android`가 누수를 감시하며, 누수가 있으면 기기 알림과 logcat(`LeakCanary` 태그)으로 알려줍니다.
+- release 빌드에 포함되지 않았는지는 `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` 출력에 leakcanary가 없는 것으로 확인합니다.
 
 ## 프로젝트 구조
 패키지 루트는 `com.beeeam` 입니다.
