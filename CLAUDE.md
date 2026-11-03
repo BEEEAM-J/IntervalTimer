@@ -56,6 +56,7 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 - 탭 이동·설정 변경 후에도 유지돼야 하는 Presenter 상태는 `rememberRetained`를 사용합니다.
 - 시간은 `kotlin.time.Duration` / `TimeSource`로 다루고, 테스트를 위해 `TimeSource`는 생성자로 주입받습니다.
 - 순수 계산 로직은 `:domain:model`에 두고, Presenter에는 상태 관리만 둡니다.
+- `:domain:repository`의 Repository 인터페이스 구현체는 data 계층에 두고 `XxxRepositoryImpl`로 이름을 짓습니다. (예: `LocationRepository` → `LocationRepositoryImpl`) 구현체도 `XxxRepository`라고 부르면 인터페이스와 헷갈리기 때문입니다.
 - 문자열은 하드코딩하지 않고 각 모듈의 `res/values/strings.xml`에 둡니다.
 - 색상 등 공통 상수는 `feature/util/Const.kt`에 `internal`로 둡니다.
 - KDoc과 주석은 기존 코드처럼 한국어로, 의도(왜)를 중심으로 작성합니다.
@@ -82,7 +83,9 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 ### 작성 원칙
 - 커밋 메시지와 PR은 **영어**로 작성합니다.
 - 작성하기 전에 `git log`와 이전 PR을 확인하고, **같은 형태와 톤**으로 작성합니다.
-- 커밋은 **최대한 작은 단위로 나눠서** 진행합니다. 하나의 커밋에는 하나의 목적만 담습니다.
+- 커밋은 **하나의 목적 단위로 묶어서** 진행합니다. 하나의 커밋에는 하나의 목적만 담되, 파일마다 따로 쪼개지 않습니다.
+  - 같은 목적의 설정·의존성 변경은 한 커밋으로 묶습니다. (예: 플러그인 적용 + `libs.versions.toml` 항목 + manifest 설정 → "지도 API 사용을 위한 의존성 설정")
+  - 함께 쓰이는 변경은 한 커밋으로 묶습니다. (예: 도메인 모델 + 그 모델을 쓰는 Repository 인터페이스, Repository 구현체 + 그것을 그래프에 연결하는 모듈 의존성)
 - 커밋하기 전에 `git status`와 `git diff`로 변경 내용을 확인하고, 관련 없는 파일은 포함하지 않습니다.
 
 ### 형식
