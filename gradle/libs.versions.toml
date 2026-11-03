@@ -13,6 +13,11 @@ circuit = "0.39.0"
 metro = "1.5.0"
 ksp = "2.3.13"
 leakcanaryStudio = "1.0.0"
+secrets = "2.0.1"
+playServicesMaps = "20.1.0"
+mapsCompose = "9.0.1"
+playServicesLocation = "21.4.0"
+coroutines = "1.11.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -34,6 +39,10 @@ circuit-test = { group = "com.slack.circuit", name = "circuit-test", version.ref
 circuit-codegen = { group = "com.slack.circuit", name = "circuit-codegen", version.ref = "circuit" }
 circuit-codegen-annotations = { group = "com.slack.circuit", name = "circuit-codegen-annotations", version.ref = "circuit" }
 leakcanary-studio = { group = "com.android.tools.studio.leakcanary", name = "leakcanary", version.ref = "leakcanaryStudio" }
+play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
+maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -43,4 +52,5 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "je
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "jetbrainsKotlinJvm" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secrets" }
 

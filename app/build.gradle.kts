@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.metro)
+    alias(libs.plugins.secrets)
 }
 
 android {
@@ -34,6 +35,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
+
+secrets {
+    // 실제 키는 git 에 올라가지 않는 local.properties 에 둔다.
+    propertiesFileName = "local.properties"
+    // 키가 없는 환경(새로 clone, CI)에서도 빌드되도록 커밋된 기본값을 쓴다.
+    defaultPropertiesFileName = "local.defaults.properties"
 }
 
 dependencies {
