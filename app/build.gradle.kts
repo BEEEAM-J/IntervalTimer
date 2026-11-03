@@ -46,6 +46,8 @@ secrets {
 
 dependencies {
     implementation(project(":feature"))
+    // @ContributesBinding 으로 기여된 구현체가 AndroidAppGraph 에 합쳐지려면 app 의 classpath 에 있어야 한다.
+    implementation(project(":data:local"))
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
