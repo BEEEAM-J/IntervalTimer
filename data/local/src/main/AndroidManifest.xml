@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- location 패키지의 현재 위치 조회에 필요하다. 앱 manifest 에 자동으로 합쳐진다. -->
+    <!-- Android 12 이상에서 사용자는 대략적 위치(COARSE)만 허용할 수 있으므로 두 권한을 함께 요청한다. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
 </manifest>

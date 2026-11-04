@@ -13,6 +13,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.IntervalTimer">
 
+        <!-- MAPS_API_KEY 는 Secrets Gradle Plugin 이 local.properties 에서 읽어 넣는다. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
