@@ -11,6 +11,7 @@
 - 메모리 누수 감지: LeakCanary (debug 빌드 전용, Android Studio Profiler 연동 라이브러리 `com.android.tools.studio.leakcanary:leakcanary`로 추가)
 - 지도·위치: Google Maps SDK + `maps-compose`, `play-services-location`(`FusedLocationProviderClient`)
 - minSdk 24 / targetSdk·compileSdk 37 / Java 17 (`maps-compose`가 JVM 17 대상이라 11에서는 inline 함수를 쓸 수 없음)
+- 화면 방향: 세로 전용. `MainActivity`를 `portrait`로 고정하고 가로 화면 UI는 따로 만들지 않습니다. 단, Android 16부터 큰 화면(태블릿·폴더블)에서는 고정이 무시되므로, 화면이 가로로 표시돼도 깨지지 않게 그립니다.
 
 ## 빌드 및 테스트 명령어
 - 디버그 빌드: `./gradlew :app:assembleDebug`
@@ -22,7 +23,7 @@
 
 Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니다.
 
-- 파일을 삭제하거나 함수를 다른 파일로 옮긴 직후 증분 빌드에서 Metro 컴파일러 플러그인이 `An operation is not implemented: Unknown file`로 실패할 수 있습니다. 코드 문제가 아니라 증분 빌드 캐시 문제로, 해당 모듈을 clean한 뒤 다시 빌드하면 됩니다. (예: `./gradlew :feature:clean :app:assembleDebug`)
+- 파일을 삭제하거나 함수를 다른 파일로 옮긴 직후, 또는 브랜치를 바꾼 직후 증분 빌드에서 Metro 컴파일러 플러그인이 `An operation is not implemented: Unknown file`로 실패할 수 있습니다. 코드 문제가 아니라 증분 빌드 캐시 문제로, 해당 모듈을 clean한 뒤 다시 빌드하면 됩니다. (예: `./gradlew :feature:clean :app:assembleDebug`)
 
 ### Maps API 키
 - 실제 키는 git에 올라가지 않는 `local.properties`에 `MAPS_API_KEY=...`로 둡니다. Secrets Gradle Plugin이 manifest의 `com.google.android.geo.API_KEY`에 넣습니다.
@@ -31,7 +32,7 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 ### 메모리 누수 확인
 - Android Studio Profiler에서 debug 앱 프로세스를 선택하고 **Find Memory Leaks with LeakCanary** task를 실행합니다.
   - 시작 시점은 **Now**(실행 중인 프로세스에 연결)를 사용합니다. 연동 라이브러리가 앱에 들어 있으므로 Process start가 필요 없습니다.
-  - 단일 Activity 구조라 탭 전환만으로는 종료되는 Activity가 없으므로, **화면 회전**을 반드시 포함합니다. 회전할 때마다 `MainActivity`가 다시 생성되어 이전 Activity의 회수 여부를 확인할 수 있습니다.
+  - 단일 Activity 구조라 탭 전환만으로는 종료되는 Activity가 없으므로, `MainActivity`를 다시 생성하는 동작을 반드시 포함합니다. 세로 고정이라 화면 회전으로는 다시 생성되지 않으므로, 빠른 설정에서 **다크 모드를 전환**합니다. 전환할 때마다 이전 Activity의 회수 여부를 확인할 수 있습니다.
 - debug 앱은 평소에도 `leakcanary-android`가 누수를 감시하며, 누수가 있으면 기기 알림과 logcat(`LeakCanary` 태그)으로 알려줍니다.
 - release 빌드에 포함되지 않았는지는 `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` 출력에 leakcanary가 없는 것으로 확인합니다.
 
