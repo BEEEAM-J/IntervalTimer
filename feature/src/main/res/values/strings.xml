@@ -46,4 +46,12 @@
     <string name="timer_preparing_total_sets">총 세트 수</string>
     <string name="timer_go">GO!</string>
     <string name="timer_skip_preparation">바로 시작</string>
+
+    <string name="record_permission_title">위치 권한이 필요해요</string>
+    <string name="record_permission_denied_description">지도에 현재 위치를 표시하려면 위치 권한을 허용해 주세요.</string>
+    <string name="record_permission_permanently_denied_description">위치 권한이 거부되어 있어요. 설정 화면에서 위치 권한을 허용해 주세요.</string>
+    <string name="record_permission_request">권한 허용하기</string>
+    <string name="record_open_settings">설정에서 허용하기</string>
+    <string name="record_location_unavailable">현재 위치를 찾을 수 없어요. 기기의 위치 설정이 켜져 있는지 확인해 주세요.</string>
+    <string name="record_retry">다시 시도</string>
 </resources>
