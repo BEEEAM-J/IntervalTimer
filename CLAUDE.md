@@ -9,7 +9,8 @@
 - 비동기: Kotlin Coroutines / Flow
 - 의존성 주입: Metro (Circuit codegen과 KSP로 연동)
 - 메모리 누수 감지: LeakCanary (debug 빌드 전용, Android Studio Profiler 연동 라이브러리 `com.android.tools.studio.leakcanary:leakcanary`로 추가)
-- minSdk 24 / targetSdk·compileSdk 37 / Java 11
+- 지도·위치: Google Maps SDK + `maps-compose`, `play-services-location`(`FusedLocationProviderClient`)
+- minSdk 24 / targetSdk·compileSdk 37 / Java 17 (`maps-compose`가 JVM 17 대상이라 11에서는 inline 함수를 쓸 수 없음)
 
 ## 빌드 및 테스트 명령어
 - 디버그 빌드: `./gradlew :app:assembleDebug`
@@ -20,6 +21,12 @@
 - 린트: `./gradlew lint`
 
 Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니다.
+
+- 파일을 삭제하거나 함수를 다른 파일로 옮긴 직후 증분 빌드에서 Metro 컴파일러 플러그인이 `An operation is not implemented: Unknown file`로 실패할 수 있습니다. 코드 문제가 아니라 증분 빌드 캐시 문제로, 해당 모듈을 clean한 뒤 다시 빌드하면 됩니다. (예: `./gradlew :feature:clean :app:assembleDebug`)
+
+### Maps API 키
+- 실제 키는 git에 올라가지 않는 `local.properties`에 `MAPS_API_KEY=...`로 둡니다. Secrets Gradle Plugin이 manifest의 `com.google.android.geo.API_KEY`에 넣습니다.
+- 키가 없으면 커밋된 `local.defaults.properties`의 기본값이 쓰여 빌드는 되지만, 지도는 표시되지 않습니다.
 
 ### 메모리 누수 확인
 - Android Studio Profiler에서 debug 앱 프로세스를 선택하고 **Find Memory Leaks with LeakCanary** task를 실행합니다.
@@ -37,14 +44,23 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 - `:feature` (`com.beeeam.feature`): 화면 단위 Circuit Screen / Presenter / Ui
   - `main/`: 바텀바로 탭을 전환하는 메인 화면 (`MainScreen`, `MainTab`)
   - `timer/`: 인터벌 타이머 화면 (설정 → 준비 카운트다운 → 진행 → 완료)
-  - `record/`, `history/`: 러닝 기록·히스토리 화면 (현재 `PlaceholderUi`, 구현 예정)
+  - `record/`: 러닝 측정 화면. 위치 권한을 확인·요청하고 지도에 현재 위치를 표시 (디자인 전 임시 화면)
+    - `RecordMapContent`(권한 허용: 지도), `RecordPermissionContent`(거부·영구 거부 안내), `LocationPermissions.kt`(권한 목록과 권한 관련 유틸)
+    - 권한 확인과 요청은 Activity가 필요하므로 Ui에서 처리하고, 결과만 `PermissionUpdated` 이벤트로 Presenter에 전달합니다.
+  - `history/`: 러닝 기록 화면 (현재 `PlaceholderUi`, 구현 예정)
   - `component/`: 여러 화면에서 쓰는 공통 Composable (`WheelPicker`, `DurationPicker` 등)
   - `util/Const.kt`: 색상 상수와 피커 값 범위
-- `:domain:model`: 순수 Kotlin 도메인 모델과 계산 로직 (`IntervalConfig`, `TimerProgress`, `Phase`)
-- `:domain:repository`, `:domain:usecase`: Repository 인터페이스와 UseCase (현재 비어 있음)
-- `:data:local`, `:data:remote`: 로컬 DB / 원격 API 구현 (현재 비어 있음)
+- `:domain:model`: 순수 Kotlin 도메인 모델과 계산 로직 (`IntervalConfig`, `TimerProgress`, `Phase`, `GeoPoint`)
+- `:domain:repository`: Repository 인터페이스 (`LocationRepository`)
+- `:domain:usecase`: UseCase (현재 비어 있음)
+- `:data:local` (`com.beeeam.data.local`): 기기 안의 데이터를 다루는 구현. 책임별로 패키지를 나눕니다.
+  - `location/`: `LocationRepositoryImpl` (`FusedLocationProviderClient`로 현재 위치 조회). 위치 권한도 이 모듈의 manifest에 선언합니다.
+  - `db/`: 러닝 기록 저장용 DB (구현 예정)
+  - 패키지가 커지면 별도 모듈로 분리합니다. 구현체는 `@ContributesBinding`으로만 연결되므로 feature·domain 코드는 바뀌지 않습니다.
+- `:data:remote`: 서버 통신 구현 (현재 비어 있음). GPS처럼 기기에서 얻는 데이터는 여기가 아니라 `:data:local`에 둡니다.
 
-의존 방향: `app` → `feature` → `domain:model` / `data` → `domain`. 도메인 모듈은 Android 의존성 없이 순수 JVM 모듈로 유지합니다.
+의존 방향: `app` → `feature`, `data:local` / `feature` → `domain:model`, `domain:repository` / `data` → `domain`. 도메인 모듈은 Android 의존성 없이 순수 JVM 모듈로 유지합니다.
+- `app`이 data 모듈을 의존하는 것은 Metro 때문입니다. `@ContributesBinding` 구현체는 그래프(`AndroidAppGraph`)가 있는 app의 classpath에 있어야 그래프에 합쳐집니다.
 
 ## 코드 규칙
 - Kotlin 공식 코딩 컨벤션을 따릅니다.
@@ -60,7 +76,8 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 - 문자열은 하드코딩하지 않고 각 모듈의 `res/values/strings.xml`에 둡니다.
 - 색상 등 공통 상수는 `feature/util/Const.kt`에 `internal`로 둡니다.
 - KDoc과 주석은 기존 코드처럼 한국어로, 의도(왜)를 중심으로 작성합니다.
-- 새 기능에는 단위 테스트를 함께 작성합니다. 도메인 로직은 JUnit, Presenter는 `circuit-test`를 사용합니다.
+- 테스트 코드는 사용자가 직접 작성합니다. 기능을 구현할 때 테스트 코드를 작성하지 않습니다. (도메인 로직은 JUnit, Presenter는 `circuit-test`를 사용)
+  - 기존 테스트(`IntervalConfigTest`, `GeoPointTest`)는 참고용으로 남겨 둡니다.
 - 기존 코드 스타일과 네이밍을 우선 따릅니다.
 
 ## 작업 방식
