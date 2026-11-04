@@ -18,9 +18,12 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
 
+        <!-- 운동 중 휴대폰을 세로로 들고 쓰는 앱이라 가로 화면 UI 는 지원하지 않는다. -->
+        <!-- Android 16 부터 큰 화면(태블릿·폴더블)에서는 이 고정이 무시되므로, 가로로 표시돼도 깨지지 않게 그린다. -->
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
