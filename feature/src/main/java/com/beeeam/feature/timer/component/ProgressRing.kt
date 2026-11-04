@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -41,10 +42,11 @@ internal fun ProgressRing(
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val stroke = strokeWidth.toPx()
-            val inset = stroke / 2
+            // 공간이 부족해 캔버스가 직사각형이 되어도 원으로 그리도록, 트랙과 진행 링 모두 짧은 변 기준의 정사각형에 그린다.
+            val diameter = this.size.minDimension - stroke
             drawCircle(
                 color = Color.White.copy(alpha = trackAlpha),
-                radius = (this.size.minDimension - stroke) / 2,
+                radius = diameter / 2,
                 style = Stroke(width = stroke),
             )
             drawArc(
@@ -52,8 +54,8 @@ internal fun ProgressRing(
                 startAngle = -90f,
                 sweepAngle = 360f * animatedProgress,
                 useCenter = false,
-                topLeft = Offset(inset, inset),
-                size = this.size.copy(width = this.size.width - stroke, height = this.size.height - stroke),
+                topLeft = Offset((this.size.width - diameter) / 2, (this.size.height - diameter) / 2),
+                size = Size(diameter, diameter),
                 style = Stroke(width = stroke, cap = StrokeCap.Round),
             )
         }
