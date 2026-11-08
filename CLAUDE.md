@@ -51,7 +51,9 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
   - `history/`: 러닝 기록 화면 (현재 `PlaceholderUi`, 구현 예정)
   - `component/`: 여러 화면에서 쓰는 공통 Composable (`WheelPicker`, `DurationPicker` 등)
   - `util/Const.kt`: 색상 상수와 피커 값 범위
-- `:domain:model`: 순수 Kotlin 도메인 모델과 계산 로직 (`IntervalConfig`, `TimerProgress`, `Phase`, `GeoPoint`)
+- `:domain:model`: 순수 Kotlin 도메인 모델과 계산 로직
+  - 인터벌 타이머: `IntervalConfig`, `TimerProgress`, `Phase`
+  - 러닝 기록: `GeoPoint`(거리 계산), `LocationPoint`, `RunningSession`(일시정지마다 나뉘는 구간 목록), `RunningStats`, `RunningPace.kt`(페이스 계산), `LocationNoiseFilter`(GPS 노이즈 필터). 자세한 동작은 `docs/running-record-logic.md` 참고
 - `:domain:repository`: Repository 인터페이스 (`LocationRepository`)
 - `:domain:usecase`: UseCase (현재 비어 있음)
 - `:data:local` (`com.beeeam.data.local`): 기기 안의 데이터를 다루는 구현. 책임별로 패키지를 나눕니다.
@@ -62,6 +64,13 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 
 의존 방향: `app` → `feature`, `data:local` / `feature` → `domain:model`, `domain:repository` / `data` → `domain`. 도메인 모듈은 Android 의존성 없이 순수 JVM 모듈로 유지합니다.
 - `app`이 data 모듈을 의존하는 것은 Metro 때문입니다. `@ContributesBinding` 구현체는 그래프(`AndroidAppGraph`)가 있는 app의 classpath에 있어야 그래프에 합쳐집니다.
+
+## 참고 문서
+로직의 동작과 설계 이유를 정리한 문서입니다. 해당 로직을 쓰거나 수정하는 작업을 시작하기 전에 먼저 읽습니다.
+
+- `docs/running-record-logic.md`: 러닝 기록 로직. 구간(일시정지) 처리, 거리·페이스 계산, GPS 노이즈 필터와 기준값, 위치 기록 쪽(Service 등)에서 지켜야 할 것
+
+문서에 정리된 로직을 바꾸면 문서도 함께 갱신합니다. 문서 갱신은 로직을 바꾼 커밋에 함께 넣습니다.
 
 ## 코드 규칙
 - Kotlin 공식 코딩 컨벤션을 따릅니다.
