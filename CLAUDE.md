@@ -82,7 +82,12 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 - 탭 이동·설정 변경 후에도 유지돼야 하는 Presenter 상태는 `rememberRetained`를 사용합니다.
 - 시간은 `kotlin.time.Duration` / `TimeSource`로 다루고, 테스트를 위해 `TimeSource`는 생성자로 주입받습니다.
 - 순수 계산 로직은 `:domain:model`에 두고, Presenter에는 상태 관리만 둡니다.
-- `:domain:repository`의 Repository 인터페이스 구현체는 data 계층에 두고 `XxxRepositoryImpl`로 이름을 짓습니다. (예: `LocationRepository` → `LocationRepositoryImpl`) 구현체도 `XxxRepository`라고 부르면 인터페이스와 헷갈리기 때문입니다.
+- feature가 app·data 계층의 기능(Repository, Service 같은 Android 컴포넌트 등)을 써야 할 때는 **인터페이스로 의존성을 역전**합니다.
+  - 인터페이스는 `:domain:repository`에 두고, feature는 인터페이스만 의존합니다.
+  - 구현체는 구현에 필요한 것을 아는 모듈(data 또는 app)에 두고 `@ContributesBinding(AppScope::class)`로 그래프에 연결합니다. 실행할 때 Metro가 구현체를 넣어 줍니다.
+  - 예: `LocationRepository`(domain) ← `LocationRepositoryImpl`(data), `RunningTracker`(domain) ← `RunningTrackerImpl`(app, 위치 추적 Service 제어)
+  - feature가 app을 직접 의존하면 `app → feature → app` 순환 의존이 되므로 만들지 않습니다.
+- domain 인터페이스의 구현체는 `XxxImpl`로 이름을 짓습니다. (예: `LocationRepository` → `LocationRepositoryImpl`) 구현체도 인터페이스와 같은 이름으로 부르면 헷갈리기 때문입니다.
 - 문자열은 하드코딩하지 않고 각 모듈의 `res/values/strings.xml`에 둡니다.
 - 색상 등 공통 상수는 `feature/util/Const.kt`에 `internal`로 둡니다.
 - KDoc과 주석은 기존 코드처럼 한국어로, 의도(왜)를 중심으로 작성합니다.
