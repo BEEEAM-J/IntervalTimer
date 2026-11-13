@@ -14,4 +14,6 @@ kotlin {
 
 dependencies {
     api(project(":domain:model"))
+    // 인터페이스가 Flow 를 반환하므로, 이 모듈을 쓰는 쪽도 바로 쓸 수 있게 api 로 둔다.
+    api(libs.kotlinx.coroutines.core)
 }
