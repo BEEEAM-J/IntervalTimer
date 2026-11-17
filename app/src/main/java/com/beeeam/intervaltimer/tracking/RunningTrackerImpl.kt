@@ -1,5 +1,10 @@
 package com.beeeam.intervaltimer.tracking
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.beeeam.domain.model.LocationNoiseFilter
 import com.beeeam.domain.model.LocationPoint
 import com.beeeam.domain.model.RunningSession
@@ -30,8 +35,10 @@ import kotlin.time.TimeSource
  * 위치를 받아 러닝 경로를 기록하는 [RunningTracker] 구현체.
  *
  * 앱 전체에서 하나만 있어서([SingleIn]) 화면과 위치 추적 Service 가 같은 기록 상태를 본다.
+ * 기록을 시작하면 [LocationTrackingService] 를 띄워, 화면이 꺼져도 위치를 계속 받게 한다.
  * 기록 규칙(노이즈 필터, 구간, 시간 계산)은 `docs/running-record-logic.md` 를 따른다.
  *
+ * @param context 그래프에서 주입되는 Application Context. 권한 확인과 Service 시작에 쓴다.
  * @param timeSource 운동 시간을 재는 시계. 기기 시간이 바뀌어도 영향을 받지 않는 단조 시계를 쓴다.
  * @param clock 시작·종료 시각(기록에 남길 실제 시각)을 얻는 시계.
  */
@@ -39,6 +46,7 @@ import kotlin.time.TimeSource
 @ContributesBinding(AppScope::class)
 @Inject
 class RunningTrackerImpl(
+    private val context: Context,
     private val locationRepository: LocationRepository,
     private val timeSource: TimeSource = TimeSource.Monotonic,
     private val clock: Clock = Clock.System,
@@ -64,6 +72,9 @@ class RunningTrackerImpl(
         scope.launch {
             val current = _state.value
             if (current is TrackingState.Running || current is TrackingState.Paused) return@launch
+            // Android 14 부터 위치 권한 없이 위치 타입 포그라운드 Service 를 시작하면 앱이 종료된다.
+            // 권한 확인과 요청은 화면의 책임이므로, 여기서는 권한이 없으면 시작하지 않는다.
+            if (!hasLocationPermission()) return@launch
 
             startedMark = timeSource.markNow()
             pausedMark = null
@@ -81,6 +92,9 @@ class RunningTrackerImpl(
                 ),
             )
             startRecording()
+            // 화면이 꺼지거나 앱이 백그라운드로 가도 위치를 계속 받도록 포그라운드 Service 를 띄운다.
+            // Service 는 기록이 끝나면(Finished) 스스로 종료한다.
+            ContextCompat.startForegroundService(context, Intent(context, LocationTrackingService::class.java))
         }
     }
 
@@ -144,6 +158,11 @@ class RunningTrackerImpl(
             }
         }
     }
+
+    private fun hasLocationPermission(): Boolean =
+        listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION).any {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
 
     private fun stopRecording() {
         recordingJob?.cancel()

@@ -2,6 +2,7 @@ package com.beeeam.intervaltimer.di
 
 import android.app.Application
 import android.content.Context
+import com.beeeam.intervaltimer.tracking.LocationTrackingService
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Binds
 import dev.zacsweers.metro.DependencyGraph
@@ -24,6 +25,12 @@ interface AndroidAppGraph : AppGraph {
      * 주입받지 말고 `LocalContext.current` 나 함수 인자로 받는다.
      */
     @Binds val Application.bindContext: Context
+
+    /**
+     * Service 는 시스템이 기본 생성자로 만들어 생성자 주입을 쓸 수 없으므로, `@Inject` 필드를 채우는 멤버 주입을 쓴다.
+     * Service 의 `onCreate()` 첫 줄에서 호출한다. (#10 에서 정한 방식)
+     */
+    fun inject(service: LocationTrackingService)
 
     @DependencyGraph.Factory
     fun interface Factory {
