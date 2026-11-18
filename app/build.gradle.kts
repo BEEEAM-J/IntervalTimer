@@ -48,6 +48,8 @@ dependencies {
     implementation(project(":feature"))
     // @ContributesBinding 으로 기여된 구현체가 AndroidAppGraph 에 합쳐지려면 app 의 classpath 에 있어야 한다.
     implementation(project(":data:local"))
+    // RunningTrackerImpl 처럼 app 에 있는 domain 인터페이스 구현체가 쓴다.
+    implementation(project(":domain:repository"))
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)

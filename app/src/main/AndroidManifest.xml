@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- 러닝 중 화면이 꺼지거나 앱이 백그라운드로 가도 위치를 계속 받기 위한 포그라운드 Service. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- 기록 중 알림. Android 13 부터 런타임 권한이며, 거부해도 Service 는 돌지만 알림이 보이지 않는다. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".IntervalTimerApplication"
         android:allowBackup="true"
@@ -30,6 +36,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- RunningTracker 가 기록을 시작할 때 띄우고, 기록이 끝나면 스스로 종료한다. -->
+        <service
+            android:name=".tracking.LocationTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
     </application>
 
 </manifest>

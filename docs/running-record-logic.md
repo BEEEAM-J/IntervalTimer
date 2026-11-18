@@ -200,3 +200,69 @@ P6 (정확도 45m)                       → ① 부정확: 버림
 - 재개할 때는 새 구간(빈 리스트)을 추가하고 `LocationNoiseFilter.reset()`을 호출합니다.
 - `duration`과 `pausedDuration`은 일시정지·재개 시각으로 직접 계산해 넣습니다. 일시정지 중에는 `duration`이 늘지 않아야 합니다.
 - 화면에 보여 줄 값은 `RunningSession.stats()`로 만듭니다.
+
+이 규칙은 `RunningTrackerImpl`(아래)이 구현합니다.
+
+## 기록 상태와 `RunningTracker`
+
+### 구성
+
+| 구성 요소 | 위치 | 역할 |
+|---|---|---|
+| `TrackingState` | `:domain:model` | 기록 상태. `Idle` / `Running(session)` / `Paused(session)` / `Finished(session)` |
+| `RunningTracker` | `:domain:repository` | 화면(feature)이 아는 인터페이스. `state: StateFlow<TrackingState>`, `start() / pause() / resume() / stop()` |
+| `RunningTrackerImpl` | `:app` (`tracking/`) | 위치를 받아 기록하는 구현체. `@SingleIn(AppScope::class)`이라 화면과 Service 가 같은 상태를 봅니다. |
+
+### 상태 전환
+
+```
+Idle ─start─▶ Running ─pause─▶ Paused ─resume─▶ Running
+                 │                 │
+                 └──────stop───────┴──▶ Finished ─start─▶ Running (새 기록)
+```
+
+상태가 맞지 않는 호출(기록 중이 아닐 때 `pause()` 등)은 무시합니다.
+
+| 동작 | 하는 일 |
+|---|---|
+| `start()` | 시간을 초기화하고 빈 구간 하나로 새 기록을 만들어 위치 수집을 시작. 필터도 초기화 |
+| `pause()` | 위치 수집을 멈추고(위치 요청 해제, GPS 꺼짐) 일시정지 시각을 기록 |
+| `resume()` | 일시정지한 시간을 더하고, **새 구간 추가 + 필터 `reset()`** 후 위치 수집 재개 |
+| `stop()` | 위치 수집을 멈추고 종료 시각을 넣어 `Finished`로. 지점이 없는 빈 구간은 빼고, 일시정지 중에 마쳤으면 그 시간까지 반영 |
+
+### 시간 계산
+
+- 운동 시간과 일시정지 시간은 **`TimeSource`(단조 시계)** 로 쟽니다. 기기 시간이 바뀌어도(시간대 변경, 자동 동기화) 운동 시간이 틀어지지 않게 하기 위해서입니다.
+- 기록에 남길 시작·종료 시각(`startedAt`, `endedAt`)만 `Clock`(실제 시각)을 씁니다.
+- 운동 시간 = 시작 후 흐른 시간 - 일시정지 시간(진행 중인 일시정지 포함)
+- 위치가 들어오지 않아도 화면의 시간이 흐르도록, 기록 중에는 **1초마다** 운동 시간을 갱신합니다.
+
+### 기준값
+
+`RunningTrackerImpl`의 `companion object` 상수입니다.
+
+| 상수 | 값 | 내용 |
+|---|---|---|
+| `LOCATION_INTERVAL` | 2초 | 위치를 받고 싶은 간격. 경로가 충분히 매끄럽으면서 배터리를 덜 씁니다. |
+| `MIN_LOCATION_INTERVAL` | 1초 | 위치가 더 자주 들어와도 이보다 빠르게는 받지 않습니다. |
+| `TIME_UPDATE_INTERVAL` | 1초 | 기록 중 운동 시간 갱신 간격 |
+
+### 포그라운드 Service (`LocationTrackingService`)
+
+화면이 꺼지거나 앱이 백그라운드로 가면 시스템이 위치 수신을 제한하거나 앱을 종료할 수 있습니다. 기록하는 동안 포그라운드 Service 로 앱을 유지합니다.
+
+- 위치를 받고 기록하는 일은 `RunningTrackerImpl`이 하고, Service 는 **포그라운드 유지와 알림**만 맡습니다.
+- `start()`는 위치 권한이 없으면 아무것도 하지 않습니다. Android 14 부터 권한 없이 위치 타입 포그라운드 Service 를 시작하면 앱이 종료되기 때문입니다. 권한 요청은 화면의 책임입니다.
+- 권한이 있으면 `Running`으로 바꾼 뒤 Service 를 시작합니다. Service 는 `RunningTracker.state`를 보며 알림을 갱신하고, `Finished`(또는 `Idle`)가 되면 스스로 종료합니다.
+- 기록 중에 Service 가 먼저 사라지면 위치를 계속 받을 수 없으므로 기록도 마칩니다(`stop()`).
+- **복구 정책: 기록 폐기.** 프로세스가 강제 종료되면 기록이 사라지고, Service 는 `START_NOT_STICKY`라 다시 시작되지 않습니다. 아직 기록을 저장할 곳이 없기 때문이며, 저장 기능이 생기면 주기적으로 저장하고 복구하는 방식으로 확장합니다.
+
+**알림** (`TrackingNotification`)
+- 기록 중: "러닝 기록 중", 거리, 경과 시간. 경과 시간은 알림의 크로노미터가 스스로 세므로 매초 다시 그리지 않습니다.
+- 일시정지: "일시정지됨", 거리와 멈춘 운동 시간
+- 거리(10m 단위)나 상태가 바뀔 때만 다시 그립니다. 알림을 누르면 앱이 열립니다.
+- 알림 권한(Android 13+)이 없어도 Service 는 돌지만 알림이 보이지 않습니다.
+
+### 동시성
+
+위치 수신, 1초 시간 갱신, 시작·일시정지 같은 조작이 동시에 일어날 수 있습니다. 상태가 꼬이지 않도록 **모든 상태 변경을 한 스레드에서 순서대로** 처리합니다(`Dispatchers.Default.limitedParallelism(1)`). `start()` 등의 호출은 이 스레드에 작업을 넣기만 하고 바로 돌아갑니다.
