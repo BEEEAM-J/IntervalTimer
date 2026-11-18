@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.beeeam.domain.model.TrackingState
 import com.beeeam.intervaltimer.R
+import kotlin.math.roundToLong
 import kotlin.time.Duration
 
 /**
@@ -125,7 +126,8 @@ internal class TrackingNotification(private val context: Context) {
                 val isPaused = state is TrackingState.Paused
                 return Content(
                     isPaused = isPaused,
-                    distanceTenMeters = ((session?.distanceMeters ?: 0.0) / 10).toLong(),
+                    // 화면은 소수점 둘째 자리(10m)에서 반올림해 보여 주므로, 알림도 버림이 아니라 반올림해야 같은 값이 나온다.
+                    distanceTenMeters = ((session?.distanceMeters ?: 0.0) / 10).roundToLong(),
                     pausedElapsed = if (isPaused) session?.duration ?: Duration.ZERO else Duration.ZERO,
                 ).apply { runningElapsed = session?.duration ?: Duration.ZERO }
             }
