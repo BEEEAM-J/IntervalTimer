@@ -41,34 +41,41 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 
 - `:app` (`com.beeeam.intervaltimer`): `Application`, `MainActivity`, Metro 의존성 그래프
   - `di/AppGraph.kt`: 플랫폼 무관 공통 그래프. `Circuit` 인스턴스를 제공 (KMP 전환 대비로 Android 타입에 의존하지 않음)
-  - `di/AndroidAppGraph.kt`: 실제 `@DependencyGraph`. `Application`을 `Context`로 바인딩
+  - `di/AndroidAppGraph.kt`: 실제 `@DependencyGraph`. `Application`을 `Context`로 바인딩하고, Service 멤버 주입(`inject()`)을 제공
+  - `tracking/`: 러닝 위치 기록. 동작은 `docs/running-record-logic.md` 참고
+    - `RunningTrackerImpl`: `RunningTracker` 구현체(`@SingleIn(AppScope::class)`). 위치 수집, 노이즈 필터, 구간·시간 관리
+    - `LocationTrackingService`: 기록 중 앱을 포그라운드로 유지하는 Service(`foregroundServiceType="location"`). 기록이 끝나면 스스로 종료
+    - `TrackingNotification`: 기록 중 알림(거리, 경과 시간)
+    - Service 는 생성자 주입을 쓸 수 없으므로 `onCreate()` 첫 줄에서 `appGraph.inject(this)`로 `@Inject` 필드를 채웁니다.
 - `:feature` (`com.beeeam.feature`): 화면 단위 Circuit Screen / Presenter / Ui
   - `main/`: 바텀바로 탭을 전환하는 메인 화면 (`MainScreen`, `MainTab`)
   - `timer/`: 인터벌 타이머 화면 (설정 → 준비 카운트다운 → 진행 → 완료)
   - `record/`: 러닝 측정 화면. 위치 권한을 확인·요청하고 지도에 현재 위치를 표시 (디자인 전 임시 화면)
     - `RecordMapContent`(권한 허용: 지도), `RecordPermissionContent`(거부·영구 거부 안내), `LocationPermissions.kt`(권한 목록과 권한 관련 유틸)
-    - 권한 확인과 요청은 Activity가 필요하므로 Ui에서 처리하고, 결과만 `PermissionUpdated` 이벤트로 Presenter에 전달합니다.
+    - 권한 확인과 요청은 Activity가 필요하므로 Ui에서 처리하고, 결과만 `PermissionUpdated` 이벤트로 Presenter에 전달합니다. 기록 중 알림 권한(Android 13+)도 같은 방식으로, 기록을 시작할 때 Ui가 요청합니다.
+    - Presenter는 `RunningTracker.state`를 보여 주고 시작·일시정지·재개·종료를 전달하기만 합니다. 기록은 화면과 상관없이 이어집니다.
+    - `component/TrackingPanel`: 기록 조작·통계를 보여 주는 임시 패널 (#15에서 디자인으로 교체 예정)
   - `history/`: 러닝 기록 화면 (현재 `PlaceholderUi`, 구현 예정)
   - `component/`: 여러 화면에서 쓰는 공통 Composable (`WheelPicker`, `DurationPicker` 등)
   - `util/Const.kt`: 색상 상수와 피커 값 범위
 - `:domain:model`: 순수 Kotlin 도메인 모델과 계산 로직
   - 인터벌 타이머: `IntervalConfig`, `TimerProgress`, `Phase`
-  - 러닝 기록: `GeoPoint`(거리 계산), `LocationPoint`, `RunningSession`(일시정지마다 나뉘는 구간 목록), `RunningStats`, `RunningPace.kt`(페이스 계산), `LocationNoiseFilter`(GPS 노이즈 필터). 자세한 동작은 `docs/running-record-logic.md` 참고
-- `:domain:repository`: Repository 인터페이스 (`LocationRepository`)
+  - 러닝 기록: `GeoPoint`(거리 계산), `LocationPoint`, `RunningSession`(일시정지마다 나뉘는 구간 목록), `RunningStats`, `RunningPace.kt`(페이스 계산), `LocationNoiseFilter`(GPS 노이즈 필터), `TrackingState`(기록 상태). 자세한 동작은 `docs/running-record-logic.md` 참고
+- `:domain:repository`: Repository 등 다른 계층이 구현하는 인터페이스 (`LocationRepository`, `RunningTracker`). `Flow`를 쓰므로 `kotlinx-coroutines-core`를 `api`로 의존합니다.
 - `:domain:usecase`: UseCase (현재 비어 있음)
 - `:data:local` (`com.beeeam.data.local`): 기기 안의 데이터를 다루는 구현. 책임별로 패키지를 나눕니다.
-  - `location/`: `LocationRepositoryImpl` (`FusedLocationProviderClient`로 현재 위치 조회). 위치 권한도 이 모듈의 manifest에 선언합니다.
+  - `location/`: `LocationRepositoryImpl` (`FusedLocationProviderClient`로 현재 위치 조회와 연속 위치 업데이트). 위치 권한도 이 모듈의 manifest에 선언합니다.
   - `db/`: 러닝 기록 저장용 DB (구현 예정)
   - 패키지가 커지면 별도 모듈로 분리합니다. 구현체는 `@ContributesBinding`으로만 연결되므로 feature·domain 코드는 바뀌지 않습니다.
 - `:data:remote`: 서버 통신 구현 (현재 비어 있음). GPS처럼 기기에서 얻는 데이터는 여기가 아니라 `:data:local`에 둡니다.
 
-의존 방향: `app` → `feature`, `data:local` / `feature` → `domain:model`, `domain:repository` / `data` → `domain`. 도메인 모듈은 Android 의존성 없이 순수 JVM 모듈로 유지합니다.
+의존 방향: `app` → `feature`, `data:local`, `domain:repository` / `feature` → `domain:model`, `domain:repository` / `data` → `domain`. 도메인 모듈은 Android 의존성 없이 순수 JVM 모듈로 유지합니다.
 - `app`이 data 모듈을 의존하는 것은 Metro 때문입니다. `@ContributesBinding` 구현체는 그래프(`AndroidAppGraph`)가 있는 app의 classpath에 있어야 그래프에 합쳐집니다.
 
 ## 참고 문서
 로직의 동작과 설계 이유를 정리한 문서입니다. 해당 로직을 쓰거나 수정하는 작업을 시작하기 전에 먼저 읽습니다.
 
-- `docs/running-record-logic.md`: 러닝 기록 로직. 구간(일시정지) 처리, 거리·페이스 계산, GPS 노이즈 필터와 기준값, 위치 기록 쪽(Service 등)에서 지켜야 할 것
+- `docs/running-record-logic.md`: 러닝 기록 로직. 구간(일시정지) 처리, 거리·페이스 계산, GPS 노이즈 필터와 기준값, 기록 상태와 `RunningTracker`, 포그라운드 Service와 복구 정책
 
 문서에 정리된 로직을 바꾸면 문서도 함께 갱신합니다. 문서 갱신은 로직을 바꾼 커밋에 함께 넣습니다.
 
