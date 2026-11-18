@@ -1,7 +1,12 @@
 package com.beeeam.feature.record
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -12,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.beeeam.feature.R
 import com.beeeam.feature.record.RunningRecordScreen.Event
@@ -24,6 +30,7 @@ import dev.zacsweers.metro.AppScope
  * 위치 권한 상태에 따라 지도 또는 권한 안내를 보여준다.
  *
  * 권한 확인과 요청에는 Activity 가 필요하므로 Ui 에서 처리하고, 결과만 [Event.PermissionUpdated] 로 Presenter 에 알린다.
+ * 기록 중 알림 권한도 같은 이유로 Ui 가 요청하고, 요청을 마친 뒤 [Event.StartTracking] 을 보낸다.
  */
 @CircuitInject(RunningRecordScreen::class, AppScope::class)
 @Composable
@@ -44,6 +51,19 @@ fun RunningRecordUi(state: State, modifier: Modifier = Modifier) {
             else -> LocationPermission.PERMANENTLY_DENIED
         }
         currentState.eventSink(Event.PermissionUpdated(permission))
+    }
+
+    // 알림 권한을 거부해도 기록은 할 수 있다. (기록 중 알림만 보이지 않는다)
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { currentState.eventSink(Event.StartTracking) }
+
+    fun startTracking() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !context.hasNotificationPermission()) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            state.eventSink(Event.StartTracking)
+        }
     }
 
     // 화면에 들어올 때와 설정 화면 등에서 돌아올 때마다 권한을 다시 확인한다.
@@ -68,7 +88,9 @@ fun RunningRecordUi(state: State, modifier: Modifier = Modifier) {
         LocationPermission.UNKNOWN -> Box(modifier = modifier.fillMaxSize())
         LocationPermission.GRANTED -> RecordMapContent(
             location = state.location,
-            onRetry = { state.eventSink(Event.RefreshLocation) },
+            tracking = state.tracking,
+            onStartTracking = ::startTracking,
+            eventSink = state.eventSink,
             modifier = modifier,
         )
         LocationPermission.DENIED -> RecordPermissionContent(
@@ -85,3 +107,8 @@ fun RunningRecordUi(state: State, modifier: Modifier = Modifier) {
         )
     }
 }
+
+/** 알림 권한은 Android 13 부터 런타임 권한이다. 그 이전에는 항상 허용되어 있다. */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun Context.hasNotificationPermission(): Boolean =
+    ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED

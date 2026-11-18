@@ -1,11 +1,13 @@
 package com.beeeam.feature.record
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.beeeam.domain.repository.LocationRepository
+import com.beeeam.domain.repository.RunningTracker
 import com.beeeam.feature.record.RunningRecordScreen.Event
 import com.beeeam.feature.record.RunningRecordScreen.State
 import com.slack.circuit.codegen.annotations.CircuitInject
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
 @Inject
 class RunningRecordPresenter(
     private val locationRepository: LocationRepository,
+    private val runningTracker: RunningTracker,
 ) : Presenter<State> {
 
     @Composable
@@ -29,6 +32,8 @@ class RunningRecordPresenter(
         var location by rememberRetained { mutableStateOf<CurrentLocation>(CurrentLocation.Idle) }
         // 화면을 벗어나면 진행 중인 위치 조회도 함께 취소된다.
         val scope = rememberCoroutineScope()
+        // 기록은 RunningTracker 가 화면과 상관없이 이어가고, 화면은 그 상태를 보기만 한다.
+        val tracking by runningTracker.state.collectAsState()
 
         fun refreshLocation() {
             if (location == CurrentLocation.Loading) return
@@ -49,6 +54,7 @@ class RunningRecordPresenter(
         return State(
             permission = permission,
             location = location,
+            tracking = tracking,
         ) { event ->
             when (event) {
                 is Event.PermissionUpdated -> {
@@ -62,6 +68,10 @@ class RunningRecordPresenter(
                 Event.RefreshLocation -> {
                     if (permission == LocationPermission.GRANTED) refreshLocation()
                 }
+                Event.StartTracking -> runningTracker.start()
+                Event.PauseTracking -> runningTracker.pause()
+                Event.ResumeTracking -> runningTracker.resume()
+                Event.StopTracking -> runningTracker.stop()
             }
         }
     }

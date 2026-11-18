@@ -11,7 +11,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.beeeam.domain.model.GeoPoint
+import com.beeeam.domain.model.TrackingState
+import com.beeeam.feature.record.RunningRecordScreen.Event
 import com.beeeam.feature.record.component.LocationUnavailableBanner
+import com.beeeam.feature.record.component.TrackingPanel
 import com.beeeam.feature.util.AccentOrange
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -21,13 +24,20 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.rememberCameraPositionState
 
-/** 위치 권한이 허용된 상태의 화면. 지도에 내 위치를 표시하고, 위치를 찾으면 카메라를 옮긴다. */
+/**
+ * 위치 권한이 허용된 상태의 화면. 지도에 내 위치를 표시하고, 위치를 찾으면 카메라를 옮긴다.
+ * 아래쪽에는 러닝 기록을 조작하는 패널을 둔다.
+ *
+ * @param onStartTracking 기록 시작. 알림 권한 요청이 필요해 Ui 가 처리하므로 이벤트가 아니라 콜백으로 받는다.
+ */
 // 권한이 허용된 경우에만 호출되므로 isMyLocationEnabled 의 권한 경고는 무시한다.
 @SuppressLint("MissingPermission")
 @Composable
 internal fun RecordMapContent(
     location: CurrentLocation,
-    onRetry: () -> Unit,
+    tracking: TrackingState,
+    onStartTracking: () -> Unit,
+    eventSink: (Event) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val cameraPositionState = rememberCameraPositionState {
@@ -58,13 +68,23 @@ internal fun RecordMapContent(
                     .padding(top = 24.dp),
             )
             CurrentLocation.Unavailable -> LocationUnavailableBanner(
-                onRetry = onRetry,
+                onRetry = { eventSink(Event.RefreshLocation) },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(16.dp),
             )
             CurrentLocation.Idle, is CurrentLocation.Found -> Unit
         }
+        TrackingPanel(
+            tracking = tracking,
+            onStart = onStartTracking,
+            onPause = { eventSink(Event.PauseTracking) },
+            onResume = { eventSink(Event.ResumeTracking) },
+            onStop = { eventSink(Event.StopTracking) },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+        )
     }
 }
 

@@ -1,22 +1,25 @@
 package com.beeeam.feature.record
 
 import com.beeeam.domain.model.GeoPoint
+import com.beeeam.domain.model.TrackingState
 import com.slack.circuit.runtime.CircuitUiEvent
 import com.slack.circuit.runtime.CircuitUiState
 import com.slack.circuit.runtime.screen.ParcelableScreen
 import kotlinx.parcelize.Parcelize
 
-/** 지도에 현재 위치를 보여주는 러닝 기록 측정 화면. */
+/** 지도에 현재 위치를 보여주고 러닝을 기록하는 화면. */
 @Parcelize
 data object RunningRecordScreen : ParcelableScreen {
 
     /**
      * @property permission 위치 권한 상태. Activity 가 있어야 확인할 수 있으므로 Ui 가 확인해서 [Event.PermissionUpdated] 로 알려준다.
      * @property location 현재 위치 조회 상태.
+     * @property tracking 러닝 기록 상태. 탭을 이동하거나 앱이 백그라운드에 있어도 기록은 계속되며, 화면은 그 상태를 보여주기만 한다.
      */
     data class State(
         val permission: LocationPermission,
         val location: CurrentLocation,
+        val tracking: TrackingState,
         val eventSink: (Event) -> Unit,
     ) : CircuitUiState
 
@@ -26,6 +29,15 @@ data object RunningRecordScreen : ParcelableScreen {
 
         /** 현재 위치를 다시 조회한다. (위치를 찾지 못했을 때 재시도 등) */
         data object RefreshLocation : Event
+
+        /** 새 기록을 시작한다. 알림 권한 요청을 마친 뒤에 보낸다. */
+        data object StartTracking : Event
+
+        data object PauseTracking : Event
+
+        data object ResumeTracking : Event
+
+        data object StopTracking : Event
     }
 }
 
