@@ -21,9 +21,14 @@ abstract class RunningSessionDao {
         return sessionId
     }
 
-    @Transaction
+    /** 목록용. 지점은 읽지 않으므로 지점 수와 상관없이 가볍다. */
     @Query("SELECT * FROM running_session ORDER BY started_at DESC")
-    abstract fun sessionsWithPoints(): Flow<List<RunningSessionWithPoints>>
+    abstract fun sessions(): Flow<List<RunningSessionEntity>>
+
+    /** 상세용. 기록 하나와 그 경로를 함께 읽는다. */
+    @Transaction
+    @Query("SELECT * FROM running_session WHERE id = :id")
+    abstract suspend fun sessionWithPoints(id: Long): RunningSessionWithPoints?
 
     /** 지점은 외래 키(CASCADE)로 함께 지워진다. */
     @Query("DELETE FROM running_session WHERE id = :id")

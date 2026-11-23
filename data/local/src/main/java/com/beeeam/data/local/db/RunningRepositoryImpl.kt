@@ -3,6 +3,7 @@ package com.beeeam.data.local.db
 import com.beeeam.domain.model.GeoPoint
 import com.beeeam.domain.model.LocationPoint
 import com.beeeam.domain.model.RunningSession
+import com.beeeam.domain.model.RunningSummary
 import com.beeeam.domain.repository.RunningRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -35,8 +36,10 @@ class RunningRepositoryImpl(
         return dao.insert(entity) { sessionId -> session.segments.toEntities(sessionId) }
     }
 
-    override fun sessions(): Flow<List<RunningSession>> =
-        dao.sessionsWithPoints().map { list -> list.map { it.toDomain() } }
+    override fun summaries(): Flow<List<RunningSummary>> =
+        dao.sessions().map { list -> list.map { it.toSummary() } }
+
+    override suspend fun session(id: Long): RunningSession? = dao.sessionWithPoints(id)?.toDomain()
 
     override suspend fun delete(id: Long) = dao.delete(id)
 
@@ -54,6 +57,15 @@ class RunningRepositoryImpl(
                 )
             }
         }
+
+    private fun RunningSessionEntity.toSummary() = RunningSummary(
+        id = id,
+        startedAt = Instant.fromEpochMilliseconds(startedAtEpochMillis),
+        endedAt = Instant.fromEpochMilliseconds(endedAtEpochMillis),
+        duration = durationMillis.milliseconds,
+        pausedDuration = pausedDurationMillis.milliseconds,
+        distanceMeters = distanceMeters,
+    )
 
     private fun RunningSessionWithPoints.toDomain(): RunningSession = RunningSession(
         id = session.id,

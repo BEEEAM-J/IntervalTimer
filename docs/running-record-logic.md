@@ -273,9 +273,12 @@ Idle ─start─▶ Running ─pause─▶ Paused ─resume─▶ Running
 
 | 구성 요소 | 위치 | 역할 |
 |---|---|---|
-| `RunningRepository` | `:domain:repository` | `save(session)`(id 반환), `sessions(): Flow`(최신순), `delete(id)` |
+| `RunningRepository` | `:domain:repository` | `save(session)`(id 반환), `summaries(): Flow`(목록용, 최신순), `session(id)`(상세용), `delete(id)` |
+| `RunningSummary` | `:domain:model` | 목록용 요약. 시각, 운동·일시정지 시간, 거리, 평균 페이스. 경로는 없습니다. |
 | `RunningRepositoryImpl` | `:data:local` | 도메인 모델 ↔ 엔티티 변환 |
 | `RunningDatabase`, `RunningSessionDao` | `:data:local` | Room DB(`running.db`)와 DAO. DB 는 `@SingleIn(AppScope::class)`로 하나만 만듭니다. |
+
+DB 는 **운동 종류별로 따로** 둡니다. 러닝 기록은 `RunningDatabase`, 인터벌 기록은 `IntervalDatabase`(이슈 #27)에 저장합니다. 종류마다 필요한 값(러닝은 경로와 거리, 인터벌은 세트 설정)과 버전 관리가 서로 영향을 주지 않게 하기 위해서입니다. 여러 종류를 함께 보여 줄 때는 각 Repository 에서 읽어 합칩니다.
 
 ### 테이블
 
@@ -289,5 +292,6 @@ Idle ─start─▶ Running ─pause─▶ Paused ─resume─▶ Running
 - **거리는 목록 표시용 사본으로 저장합니다.** 도메인에서는 거리를 경로로 계산하지만, 목록 화면에서 기록마다 지점 수천 개를 읽지 않도록 저장할 때 계산한 값을 함께 둡니다. 저장할 때 `distanceMeters`로 계산하므로 경로와 어긋나지 않습니다.
 - 기록과 경로는 **하나의 트랜잭션**으로 저장합니다. 중간에 실패하면 둘 다 저장되지 않습니다.
 - 기록을 지우면 외래 키(`CASCADE`)로 경로도 함께 지워집니다.
+- **목록과 상세를 따로 읽습니다.** 목록(`summaries()`)은 `running_session`만 읽고, 경로는 상세(`session(id)`)에서 기록 하나만 읽습니다. Room 의 `Flow` 쿼리는 테이블이 바뀔 때마다 처음부터 다시 실행되므로, 목록에서 경로까지 읽으면 저장할 때마다 모든 기록의 지점을 다시 읽게 됩니다.
 - 진행 중인 기록(`endedAt == null`)은 저장할 수 없습니다. 저장하면 DB 가 id 를 정합니다. (저장 전 기록의 id 는 0)
 - **테이블을 바꾸면** `RunningDatabase`의 `version`을 올리고 마이그레이션을 추가합니다. 버전별 구조는 `data/local/schemas/`에 JSON 으로 남기고 커밋합니다.
