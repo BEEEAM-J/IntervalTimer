@@ -85,7 +85,7 @@ segments = [[A, …, B], [C, …, D]]
 - 거리는 **각 구간 안에서만** 더합니다(A→B + C→D). 구간 사이(B→C, 쉬면서 걸은 300m)는 러닝으로 치지 않습니다.
 - 지도에서도 구간마다 선을 따로 그리면 일시정지한 사이가 끊긴 채로 보입니다.
 - 한 줄 목록 `[A, B, C, D]`로 두면 B→C가 이어져서 걸은 거리가 더해지기 때문에 이 방식을 택했습니다.
-- DB에 저장할 때는 지점마다 구간 번호를 붙여 펼쳐서 저장하고, data 계층에서 구간 목록으로 변환합니다.
+- DB에 저장할 때는 지점마다 구간 번호를 붙여 펼쳐서 저장하고, data 계층에서 구간 목록으로 변환합니다. (아래 "기록 저장" 참고)
 
 **거리는 저장하지 않고 계산합니다.**
 
@@ -266,3 +266,28 @@ Idle ─start─▶ Running ─pause─▶ Paused ─resume─▶ Running
 ### 동시성
 
 위치 수신, 1초 시간 갱신, 시작·일시정지 같은 조작이 동시에 일어날 수 있습니다. 상태가 꼬이지 않도록 **모든 상태 변경을 한 스레드에서 순서대로** 처리합니다(`Dispatchers.Default.limitedParallelism(1)`). `start()` 등의 호출은 이 스레드에 작업을 넣기만 하고 바로 돌아갑니다.
+
+## 기록 저장 (`RunningRepository`)
+
+마친 기록은 Room DB(`:data:local`의 `db/` 패키지)에 저장합니다. Room을 고른 이유는 이슈 #16 코멘트에 있습니다.
+
+| 구성 요소 | 위치 | 역할 |
+|---|---|---|
+| `RunningRepository` | `:domain:repository` | `save(session)`(id 반환), `sessions(): Flow`(최신순), `delete(id)` |
+| `RunningRepositoryImpl` | `:data:local` | 도메인 모델 ↔ 엔티티 변환 |
+| `RunningDatabase`, `RunningSessionDao` | `:data:local` | Room DB(`running.db`)와 DAO. DB 는 `@SingleIn(AppScope::class)`로 하나만 만듭니다. |
+
+### 테이블
+
+| 테이블 | 열 |
+|---|---|
+| `running_session` | `id`(자동), `started_at`, `ended_at`, `duration_millis`, `paused_duration_millis`, `distance_meters` |
+| `location_point` | `id`(자동), `session_id`(외래 키), `segment_index`, `point_index`, `latitude`, `longitude`, `timestamp`, `accuracy` |
+
+- 시각은 1970년 기준 밀리초, 시간은 밀리초로 저장합니다.
+- **구간 목록을 펼쳐서 저장합니다.** 지점마다 구간 번호(`segment_index`)와 구간 안 순서(`point_index`)를 붙이고, 읽을 때 이 두 값으로 정렬해 다시 구간 목록으로 묶습니다. Room 은 관계로 읽은 지점의 순서를 보장하지 않기 때문입니다.
+- **거리는 목록 표시용 사본으로 저장합니다.** 도메인에서는 거리를 경로로 계산하지만, 목록 화면에서 기록마다 지점 수천 개를 읽지 않도록 저장할 때 계산한 값을 함께 둡니다. 저장할 때 `distanceMeters`로 계산하므로 경로와 어긋나지 않습니다.
+- 기록과 경로는 **하나의 트랜잭션**으로 저장합니다. 중간에 실패하면 둘 다 저장되지 않습니다.
+- 기록을 지우면 외래 키(`CASCADE`)로 경로도 함께 지워집니다.
+- 진행 중인 기록(`endedAt == null`)은 저장할 수 없습니다. 저장하면 DB 가 id 를 정합니다. (저장 전 기록의 id 는 0)
+- **테이블을 바꾸면** `RunningDatabase`의 `version`을 올리고 마이그레이션을 추가합니다. 버전별 구조는 `data/local/schemas/`에 JSON 으로 남기고 커밋합니다.
