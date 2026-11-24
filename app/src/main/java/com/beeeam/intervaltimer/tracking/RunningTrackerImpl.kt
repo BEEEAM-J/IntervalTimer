@@ -4,17 +4,20 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.beeeam.domain.model.LocationNoiseFilter
 import com.beeeam.domain.model.LocationPoint
 import com.beeeam.domain.model.RunningSession
 import com.beeeam.domain.model.TrackingState
 import com.beeeam.domain.repository.LocationRepository
+import com.beeeam.domain.repository.RunningRepository
 import com.beeeam.domain.repository.RunningTracker
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,9 +39,11 @@ import kotlin.time.TimeSource
  *
  * 앱 전체에서 하나만 있어서([SingleIn]) 화면과 위치 추적 Service 가 같은 기록 상태를 본다.
  * 기록을 시작하면 [LocationTrackingService] 를 띄워, 화면이 꺼져도 위치를 계속 받게 한다.
+ * 기록을 마치면 화면과 상관없이 [RunningRepository] 에 자동으로 저장한다.
  * 기록 규칙(노이즈 필터, 구간, 시간 계산)은 `docs/running-record-logic.md` 를 따른다.
  *
  * @param context 그래프에서 주입되는 Application Context. 권한 확인과 Service 시작에 쓴다.
+ * @param runningRepository 마친 기록을 저장하는 저장소.
  * @param timeSource 운동 시간을 재는 시계. 기기 시간이 바뀌어도 영향을 받지 않는 단조 시계를 쓴다.
  * @param clock 시작·종료 시각(기록에 남길 실제 시각)을 얻는 시계.
  */
@@ -48,6 +53,7 @@ import kotlin.time.TimeSource
 class RunningTrackerImpl(
     private val context: Context,
     private val locationRepository: LocationRepository,
+    private val runningRepository: RunningRepository,
     private val timeSource: TimeSource = TimeSource.Monotonic,
     private val clock: Clock = Clock.System,
 ) : RunningTracker {
@@ -82,7 +88,7 @@ class RunningTrackerImpl(
             noiseFilter.reset()
             _state.value = TrackingState.Running(
                 RunningSession(
-                    // 아직 저장하지 않은 기록이라 id 가 없다. 저장 기능이 생기면 저장할 때 정한다.
+                    // 아직 저장하지 않은 기록이라 id 가 없다. 기록을 마치고 저장할 때 저장소가 정한다.
                     id = 0,
                     startedAt = clock.now(),
                     endedAt = null,
@@ -140,7 +146,26 @@ class RunningTrackerImpl(
             startedMark = null
             pausedMark = null
             pausedTotal = Duration.ZERO
-            _state.value = TrackingState.Finished(finished)
+            // Service 는 Finished 가 되면 종료되므로, 백그라운드에서 프로세스가 먼저 종료되지 않도록 저장을 마친 뒤 상태를 바꾼다.
+            _state.value = TrackingState.Finished(save(finished))
+        }
+    }
+
+    /**
+     * 마친 기록을 저장하고, 저장소가 정한 id 를 넣어 돌려준다.
+     *
+     * 지점이 하나도 없는 기록(시작하자마자 종료, GPS 를 한 번도 못 잡음)은 남길 것이 없으므로 저장하지 않는다.
+     * 저장에 실패해도 기록 종료는 진행해야 하므로, 예외를 남기고 저장하지 않은 기록(id 0)을 돌려준다.
+     */
+    private suspend fun save(session: RunningSession): RunningSession {
+        if (session.segments.isEmpty()) return session
+        return try {
+            session.copy(id = runningRepository.save(session))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save the running record", e)
+            session
         }
     }
 
@@ -196,6 +221,8 @@ class RunningTrackerImpl(
     }
 
     private companion object {
+        const val TAG = "RunningTracker"
+
         /** 위치를 받고 싶은 간격. 경로가 충분히 매끄러우면서 배터리를 덜 쓰도록 2초로 시작한다. */
         val LOCATION_INTERVAL = 2.seconds
 

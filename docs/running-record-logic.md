@@ -85,7 +85,7 @@ segments = [[A, …, B], [C, …, D]]
 - 거리는 **각 구간 안에서만** 더합니다(A→B + C→D). 구간 사이(B→C, 쉬면서 걸은 300m)는 러닝으로 치지 않습니다.
 - 지도에서도 구간마다 선을 따로 그리면 일시정지한 사이가 끊긴 채로 보입니다.
 - 한 줄 목록 `[A, B, C, D]`로 두면 B→C가 이어져서 걸은 거리가 더해지기 때문에 이 방식을 택했습니다.
-- DB에 저장할 때는 지점마다 구간 번호를 붙여 펼쳐서 저장하고, data 계층에서 구간 목록으로 변환합니다.
+- DB에 저장할 때는 지점마다 구간 번호를 붙여 펼쳐서 저장하고, data 계층에서 구간 목록으로 변환합니다. (아래 "기록 저장" 참고)
 
 **거리는 저장하지 않고 계산합니다.**
 
@@ -228,7 +228,7 @@ Idle ─start─▶ Running ─pause─▶ Paused ─resume─▶ Running
 | `start()` | 시간을 초기화하고 빈 구간 하나로 새 기록을 만들어 위치 수집을 시작. 필터도 초기화 |
 | `pause()` | 위치 수집을 멈추고(위치 요청 해제, GPS 꺼짐) 일시정지 시각을 기록 |
 | `resume()` | 일시정지한 시간을 더하고, **새 구간 추가 + 필터 `reset()`** 후 위치 수집 재개 |
-| `stop()` | 위치 수집을 멈추고 종료 시각을 넣어 `Finished`로. 지점이 없는 빈 구간은 빼고, 일시정지 중에 마쳤으면 그 시간까지 반영 |
+| `stop()` | 위치 수집을 멈추고 종료 시각을 넣어 기록을 저장한 뒤 `Finished`로. 지점이 없는 빈 구간은 빼고, 일시정지 중에 마쳤으면 그 시간까지 반영 (아래 "기록 저장" 참고) |
 
 ### 시간 계산
 
@@ -255,7 +255,7 @@ Idle ─start─▶ Running ─pause─▶ Paused ─resume─▶ Running
 - `start()`는 위치 권한이 없으면 아무것도 하지 않습니다. Android 14 부터 권한 없이 위치 타입 포그라운드 Service 를 시작하면 앱이 종료되기 때문입니다. 권한 요청은 화면의 책임입니다.
 - 권한이 있으면 `Running`으로 바꾼 뒤 Service 를 시작합니다. Service 는 `RunningTracker.state`를 보며 알림을 갱신하고, `Finished`(또는 `Idle`)가 되면 스스로 종료합니다.
 - 기록 중에 Service 가 먼저 사라지면 위치를 계속 받을 수 없으므로 기록도 마칩니다(`stop()`).
-- **복구 정책: 기록 폐기.** 프로세스가 강제 종료되면 기록이 사라지고, Service 는 `START_NOT_STICKY`라 다시 시작되지 않습니다. 아직 기록을 저장할 곳이 없기 때문이며, 저장 기능이 생기면 주기적으로 저장하고 복구하는 방식으로 확장합니다.
+- **복구 정책: 기록 폐기.** 프로세스가 강제 종료되면 기록이 사라지고, Service 는 `START_NOT_STICKY`라 다시 시작되지 않습니다. 기록은 마칠 때만 저장하기 때문이며, 기록 중 1분마다 저장하고 복구하는 방식은 이슈 #28 에서 추가합니다.
 
 **알림** (`TrackingNotification`)
 - 기록 중: "러닝 기록 중", 거리, 경과 시간. 경과 시간은 알림의 크로노미터가 스스로 세므로 매초 다시 그리지 않습니다.
@@ -266,3 +266,42 @@ Idle ─start─▶ Running ─pause─▶ Paused ─resume─▶ Running
 ### 동시성
 
 위치 수신, 1초 시간 갱신, 시작·일시정지 같은 조작이 동시에 일어날 수 있습니다. 상태가 꼬이지 않도록 **모든 상태 변경을 한 스레드에서 순서대로** 처리합니다(`Dispatchers.Default.limitedParallelism(1)`). `start()` 등의 호출은 이 스레드에 작업을 넣기만 하고 바로 돌아갑니다.
+
+## 기록 저장 (`RunningRepository`)
+
+마친 기록은 Room DB(`:data:local`의 `db/` 패키지)에 저장합니다. Room을 고른 이유는 이슈 #16 코멘트에 있습니다.
+
+### 자동 저장
+
+사용자가 저장 버튼을 누르지 않아도, `RunningTrackerImpl.stop()`이 기록을 마치면서 저장합니다.
+
+- 화면에서 종료한 경우와 Service 가 사라져 종료한 경우 모두 `stop()`을 지나므로, 화면이 없어도 저장됩니다.
+- **저장을 마친 뒤 `Finished`로 바꿉니다.** Service 는 `Finished`가 되면 종료되므로, 먼저 바꾸면 백그라운드에서 저장을 마치기 전에 프로세스가 종료될 수 있습니다. `Finished`의 기록에는 저장소가 정한 id 가 들어 있습니다.
+- **지점이 하나도 없는 기록은 저장하지 않습니다.** 시작하자마자 종료했거나 GPS 를 한 번도 잡지 못한 경우입니다. 이때 `Finished`의 id 는 0 입니다.
+- 저장에 실패해도(저장 공간 부족 등) 기록 종료는 그대로 진행하고, 실패는 logcat(`RunningTracker` 태그)에 남깁니다.
+- 기록 중에는 저장하지 않습니다. 진행 중 저장과 복구는 이슈 #28 에서 다룹니다.
+
+| 구성 요소 | 위치 | 역할 |
+|---|---|---|
+| `RunningRepository` | `:domain:repository` | `save(session)`(id 반환), `summaries(): Flow`(목록용, 최신순), `session(id)`(상세용), `delete(id)` |
+| `RunningSummary` | `:domain:model` | 목록용 요약. 시각, 운동·일시정지 시간, 거리, 평균 페이스. 경로는 없습니다. |
+| `RunningRepositoryImpl` | `:data:local` | 도메인 모델 ↔ 엔티티 변환 |
+| `RunningDatabase`, `RunningSessionDao` | `:data:local` | Room DB(`running.db`)와 DAO. DB 는 `@SingleIn(AppScope::class)`로 하나만 만듭니다. |
+
+DB 는 **운동 종류별로 따로** 둡니다. 러닝 기록은 `RunningDatabase`, 인터벌 기록은 `IntervalDatabase`(이슈 #27)에 저장합니다. 종류마다 필요한 값(러닝은 경로와 거리, 인터벌은 세트 설정)과 버전 관리가 서로 영향을 주지 않게 하기 위해서입니다. 여러 종류를 함께 보여 줄 때는 각 Repository 에서 읽어 합칩니다.
+
+### 테이블
+
+| 테이블 | 열 |
+|---|---|
+| `running_session` | `id`(자동), `started_at`, `ended_at`, `duration_millis`, `paused_duration_millis`, `distance_meters` |
+| `location_point` | `id`(자동), `session_id`(외래 키), `segment_index`, `point_index`, `latitude`, `longitude`, `timestamp`, `accuracy` |
+
+- 시각은 1970년 기준 밀리초, 시간은 밀리초로 저장합니다.
+- **구간 목록을 펼쳐서 저장합니다.** 지점마다 구간 번호(`segment_index`)와 구간 안 순서(`point_index`)를 붙이고, 읽을 때 이 두 값으로 정렬해 다시 구간 목록으로 묶습니다. Room 은 관계로 읽은 지점의 순서를 보장하지 않기 때문입니다.
+- **거리는 목록 표시용 사본으로 저장합니다.** 도메인에서는 거리를 경로로 계산하지만, 목록 화면에서 기록마다 지점 수천 개를 읽지 않도록 저장할 때 계산한 값을 함께 둡니다. 저장할 때 `distanceMeters`로 계산하므로 경로와 어긋나지 않습니다.
+- 기록과 경로는 **하나의 트랜잭션**으로 저장합니다. 중간에 실패하면 둘 다 저장되지 않습니다.
+- 기록을 지우면 외래 키(`CASCADE`)로 경로도 함께 지워집니다.
+- **목록과 상세를 따로 읽습니다.** 목록(`summaries()`)은 `running_session`만 읽고, 경로는 상세(`session(id)`)에서 기록 하나만 읽습니다. Room 의 `Flow` 쿼리는 테이블이 바뀔 때마다 처음부터 다시 실행되므로, 목록에서 경로까지 읽으면 저장할 때마다 모든 기록의 지점을 다시 읽게 됩니다.
+- 진행 중인 기록(`endedAt == null`)은 저장할 수 없습니다. 저장하면 DB 가 id 를 정합니다. (저장 전 기록의 id 는 0)
+- **테이블을 바꾸면** `RunningDatabase`의 `version`을 올리고 마이그레이션을 추가합니다. 버전별 구조는 `data/local/schemas/`에 JSON 으로 남기고 커밋합니다.
