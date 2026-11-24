@@ -1,6 +1,6 @@
 # IntervalTimer
 
-세트 수와 운동/휴식 시간을 설정해 인터벌 운동을 진행하는 Android 타이머 앱 (러닝 기록·히스토리 기능 추가 예정)
+세트 수와 운동/휴식 시간을 설정해 인터벌 운동을 진행하는 Android 타이머 앱 (러닝 기록·저장 포함, 히스토리 화면 추가 예정)
 
 ## 기술 스택
 - 언어: Kotlin
@@ -10,6 +10,7 @@
 - 의존성 주입: Metro (Circuit codegen과 KSP로 연동)
 - 메모리 누수 감지: LeakCanary (debug 빌드 전용, Android Studio Profiler 연동 라이브러리 `com.android.tools.studio.leakcanary:leakcanary`로 추가)
 - 지도·위치: Google Maps SDK + `maps-compose`, `play-services-location`(`FusedLocationProviderClient`)
+- 로컬 DB: Room (KSP). Room Gradle Plugin이 버전별 스키마를 `data/local/schemas/`에 내보내며, 이 JSON도 커밋합니다.
 - minSdk 24 / targetSdk·compileSdk 37 / Java 17 (`maps-compose`가 JVM 17 대상이라 11에서는 inline 함수를 쓸 수 없음)
 - 화면 방향: 세로 전용. `MainActivity`를 `portrait`로 고정하고 가로 화면 UI는 따로 만들지 않습니다. 단, Android 16부터 큰 화면(태블릿·폴더블)에서는 고정이 무시되므로, 화면이 가로로 표시돼도 깨지지 않게 그립니다.
 
@@ -36,6 +37,10 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 - debug 앱은 평소에도 `leakcanary-android`가 누수를 감시하며, 누수가 있으면 기기 알림과 logcat(`LeakCanary` 태그)으로 알려줍니다.
 - release 빌드에 포함되지 않았는지는 `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` 출력에 leakcanary가 없는 것으로 확인합니다.
 
+### 저장된 기록 확인
+- Android Studio의 **App Inspection → Database Inspector**에서 `running.db`를 엽니다.
+- Room은 DB를 처음 쓸 때 열기 때문에, 앱이 DB에 접근하기 전에는 `(closed)`로 표시되고 조회할 수 없습니다. 러닝 기록을 마친 직후(자동 저장 후) 앱 프로세스가 살아 있을 때 확인하고, **Keep database connections open**(자물쇠 아이콘)을 켜 둡니다.
+
 ## 프로젝트 구조
 패키지 루트는 `com.beeeam` 입니다.
 
@@ -43,7 +48,7 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
   - `di/AppGraph.kt`: 플랫폼 무관 공통 그래프. `Circuit` 인스턴스를 제공 (KMP 전환 대비로 Android 타입에 의존하지 않음)
   - `di/AndroidAppGraph.kt`: 실제 `@DependencyGraph`. `Application`을 `Context`로 바인딩하고, Service 멤버 주입(`inject()`)을 제공
   - `tracking/`: 러닝 위치 기록. 동작은 `docs/running-record-logic.md` 참고
-    - `RunningTrackerImpl`: `RunningTracker` 구현체(`@SingleIn(AppScope::class)`). 위치 수집, 노이즈 필터, 구간·시간 관리
+    - `RunningTrackerImpl`: `RunningTracker` 구현체(`@SingleIn(AppScope::class)`). 위치 수집, 노이즈 필터, 구간·시간 관리. 기록을 마치면 `RunningRepository`로 자동 저장
     - `LocationTrackingService`: 기록 중 앱을 포그라운드로 유지하는 Service(`foregroundServiceType="location"`). 기록이 끝나면 스스로 종료
     - `TrackingNotification`: 기록 중 알림(거리, 경과 시간)
     - Service 는 생성자 주입을 쓸 수 없으므로 `onCreate()` 첫 줄에서 `appGraph.inject(this)`로 `@Inject` 필드를 채웁니다.
@@ -60,12 +65,15 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
   - `util/Const.kt`: 색상 상수와 피커 값 범위
 - `:domain:model`: 순수 Kotlin 도메인 모델과 계산 로직
   - 인터벌 타이머: `IntervalConfig`, `TimerProgress`, `Phase`
-  - 러닝 기록: `GeoPoint`(거리 계산), `LocationPoint`, `RunningSession`(일시정지마다 나뉘는 구간 목록), `RunningStats`, `RunningPace.kt`(페이스 계산), `LocationNoiseFilter`(GPS 노이즈 필터), `TrackingState`(기록 상태). 자세한 동작은 `docs/running-record-logic.md` 참고
-- `:domain:repository`: Repository 등 다른 계층이 구현하는 인터페이스 (`LocationRepository`, `RunningTracker`). `Flow`를 쓰므로 `kotlinx-coroutines-core`를 `api`로 의존합니다.
+  - 러닝 기록: `GeoPoint`(거리 계산), `LocationPoint`, `RunningSession`(일시정지마다 나뉘는 구간 목록), `RunningSummary`(경로 없는 목록용 요약), `RunningStats`, `RunningPace.kt`(페이스 계산), `LocationNoiseFilter`(GPS 노이즈 필터), `TrackingState`(기록 상태). 자세한 동작은 `docs/running-record-logic.md` 참고
+- `:domain:repository`: Repository 등 다른 계층이 구현하는 인터페이스 (`LocationRepository`, `RunningTracker`, `RunningRepository`). `Flow`를 쓰므로 `kotlinx-coroutines-core`를 `api`로 의존합니다.
 - `:domain:usecase`: UseCase (현재 비어 있음)
 - `:data:local` (`com.beeeam.data.local`): 기기 안의 데이터를 다루는 구현. 책임별로 패키지를 나눕니다.
   - `location/`: `LocationRepositoryImpl` (`FusedLocationProviderClient`로 현재 위치 조회와 연속 위치 업데이트). 위치 권한도 이 모듈의 manifest에 선언합니다.
-  - `db/`: 러닝 기록 저장용 DB (구현 예정)
+  - `db/`: Room 기록 저장. 운동 종류별로 DB를 따로 둡니다. (러닝 `RunningDatabase`(`running.db`), 인터벌은 #27에서 `IntervalDatabase`로 추가 예정)
+    - `RunningDatabase` + `RunningDatabaseProviders`(`@BindingContainer`로 DB 싱글톤과 DAO를 그래프에 제공), `RunningSessionDao`, `RunningSessionEntity`·`LocationPointEntity`
+    - `RunningRepositoryImpl`: 도메인 모델 ↔ 엔티티 변환. 목록(`summaries()`)은 경로 없이, 상세(`session(id)`)는 경로까지 읽습니다.
+    - 테이블을 바꾸면 DB `version`을 올리고 마이그레이션을 추가합니다.
   - 패키지가 커지면 별도 모듈로 분리합니다. 구현체는 `@ContributesBinding`으로만 연결되므로 feature·domain 코드는 바뀌지 않습니다.
 - `:data:remote`: 서버 통신 구현 (현재 비어 있음). GPS처럼 기기에서 얻는 데이터는 여기가 아니라 `:data:local`에 둡니다.
 
@@ -75,7 +83,7 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 ## 참고 문서
 로직의 동작과 설계 이유를 정리한 문서입니다. 해당 로직을 쓰거나 수정하는 작업을 시작하기 전에 먼저 읽습니다.
 
-- `docs/running-record-logic.md`: 러닝 기록 로직. 구간(일시정지) 처리, 거리·페이스 계산, GPS 노이즈 필터와 기준값, 기록 상태와 `RunningTracker`, 포그라운드 Service와 복구 정책
+- `docs/running-record-logic.md`: 러닝 기록 로직. 구간(일시정지) 처리, 거리·페이스 계산, GPS 노이즈 필터와 기준값, 기록 상태와 `RunningTracker`, 포그라운드 Service와 복구 정책, 기록 저장(테이블 구조, 자동 저장)
 
 문서에 정리된 로직을 바꾸면 문서도 함께 갱신합니다. 문서 갱신은 로직을 바꾼 커밋에 함께 넣습니다.
 
