@@ -3,11 +3,15 @@ package com.beeeam.feature.timer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.beeeam.domain.model.IntervalConfig
+import com.beeeam.domain.model.IntervalSession
 import com.beeeam.domain.model.Phase
 import com.beeeam.domain.model.TimerProgress
+import com.beeeam.domain.repository.IntervalRepository
 import com.beeeam.feature.timer.IntervalTimerScreen.Event
 import com.beeeam.feature.timer.IntervalTimerScreen.Preparation
 import com.beeeam.feature.timer.IntervalTimerScreen.Session
@@ -17,18 +21,29 @@ import com.slack.circuit.retained.rememberRetained
 import com.slack.circuit.runtime.presenter.Presenter
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 // timeSource 는 그래프에 바인딩이 없으면 기본값(Monotonic)을 쓰고, 테스트에서는 TestTimeSource 를 넣을 수 있다.
+// clock 은 기록에 남길 시작·종료 시각(실제 시각)을 얻는 시계다. 운동 시간은 timeSource 로 잔다.
+// 기록 저장 시점은 `docs/interval-record-logic.md` 를 따른다.
 @CircuitInject(IntervalTimerScreen::class, AppScope::class)
 @Inject
 class IntervalTimerPresenter(
+    private val intervalRepository: IntervalRepository,
     private val timeSource: TimeSource = TimeSource.Monotonic,
+    private val clock: Clock = Clock.System,
 ) : Presenter<State> {
 
     @Composable
@@ -51,6 +66,47 @@ class IntervalTimerPresenter(
         var resumedAt by rememberRetained { mutableStateOf<TimeMark?>(null) }
         var elapsed by rememberRetained { mutableStateOf(Duration.ZERO) }
 
+        // 진행 중인 운동 기록. 시작 시각이 null 이면 기록할 운동이 없다.
+        var startedAt by rememberRetained { mutableStateOf<Instant?>(null) }
+        // 종료까지 저장한 뒤에는 같은 기록을 다시 바꾸지 않는다. (완료 화면의 "종료", 탭에 돌아왔을 때 등)
+        var recordEnded by rememberRetained { mutableStateOf(false) }
+        // 저장소가 정한 기록 id. 처음 저장하기 전에는 0.
+        var recordId by rememberRetained { mutableLongStateOf(0L) }
+        // 저장을 호출한 순서대로 처리해, 기록을 만들기 전에 갱신이 실행되지 않게 한다.
+        val saveMutex = rememberRetained { Mutex() }
+        val scope = rememberCoroutineScope()
+
+        /**
+         * 지금 상태로 기록을 저장한다. 운동을 시작한 뒤 처음이면 새로 만들고, 이후에는 같은 기록을 갱신한다.
+         *
+         * 저장은 짧은 DB 쓰기라, 저장 중에 탭을 옮겨 화면이 사라져도 끝까지 실행한다.
+         */
+        fun saveRecord(target: IntervalConfig, ended: Boolean, isNew: Boolean = false) {
+            val started = startedAt ?: return
+            if (recordEnded) return
+            if (ended) recordEnded = true
+            val session = IntervalSession(
+                id = 0,
+                startedAt = started,
+                endedAt = if (ended) clock.now() else null,
+                config = target,
+                completedSets = target.completedSetsAt(elapsed),
+                // 타이머는 일정 간격으로 경과 시간을 갱신하므로, 끝난 직후에는 전체 시간을 조금 넘을 수 있다.
+                duration = elapsed.coerceAtMost(target.totalDuration),
+            )
+            scope.launch {
+                withContext(NonCancellable) {
+                    saveMutex.withLock {
+                        if (isNew) {
+                            recordId = intervalRepository.create(session)
+                        } else if (recordId != 0L) {
+                            intervalRepository.update(session.copy(id = recordId))
+                        }
+                    }
+                }
+            }
+        }
+
         fun startWorkout(target: IntervalConfig) {
             preparing = null
             preparedAt = null
@@ -59,6 +115,9 @@ class IntervalTimerPresenter(
             accumulated = Duration.ZERO
             elapsed = Duration.ZERO
             resumedAt = timeSource.markNow()
+            startedAt = clock.now()
+            recordEnded = false
+            saveRecord(target, ended = false, isNew = true)
         }
 
         // 준비 카운트다운이 끝나면 "Go!" 를 잠시 보여준 뒤 운동을 시작한다.
@@ -88,6 +147,15 @@ class IntervalTimerPresenter(
                 }
                 delay(TICK)
             }
+        }
+
+        // 세트를 마칠 때마다 진행 상황을 저장하고, 모든 세트를 마치면 종료로 저장한다.
+        // 다른 탭에 있는 동안 끝난 세트는 돌아와 경과 시간을 따라잡을 때 저장된다.
+        val completedSets = config?.completedSetsAt(elapsed)
+        LaunchedEffect(config, completedSets) {
+            val running = config ?: return@LaunchedEffect
+            if (completedSets == null || completedSets == 0) return@LaunchedEffect
+            saveRecord(running, ended = completedSets == running.sets)
         }
 
         val inputConfig = toConfig(sets, workSeconds, restSeconds)
@@ -146,12 +214,19 @@ class IntervalTimerPresenter(
                     accumulated += mark.elapsedNow()
                     elapsed = accumulated
                     resumedAt = null
+                    config?.let { saveRecord(it, ended = false) }
                 }
                 Event.Resume -> {
                     if (session == null || session.progress.phase == Phase.FINISHED) return@State
                     resumedAt = timeSource.markNow()
                 }
                 Event.Stop -> {
+                    // 중간에 그만둬도 마친 세트까지 종료로 저장한다. 완료 화면에서는 이미 저장했으므로 바뀜지 않는다.
+                    config?.let { running ->
+                        resumedAt?.let { elapsed = accumulated + it.elapsedNow() }
+                        saveRecord(running, ended = true)
+                    }
+                    startedAt = null
                     preparing = null
                     preparedAt = null
                     prepareElapsed = Duration.ZERO
