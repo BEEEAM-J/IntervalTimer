@@ -1,6 +1,6 @@
 # IntervalTimer
 
-세트 수와 운동/휴식 시간을 설정해 인터벌 운동을 진행하는 Android 타이머 앱 (러닝 기록·저장 포함, 히스토리 화면 추가 예정)
+세트 수와 운동/휴식 시간을 설정해 인터벌 운동을 진행하는 Android 타이머 앱 (러닝 측정, 인터벌·러닝 기록 저장 포함, 히스토리 화면 추가 예정)
 
 ## 기술 스택
 - 언어: Kotlin
@@ -38,8 +38,8 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 - release 빌드에 포함되지 않았는지는 `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` 출력에 leakcanary가 없는 것으로 확인합니다.
 
 ### 저장된 기록 확인
-- Android Studio의 **App Inspection → Database Inspector**에서 `running.db`를 엽니다.
-- Room은 DB를 처음 쓸 때 열기 때문에, 앱이 DB에 접근하기 전에는 `(closed)`로 표시되고 조회할 수 없습니다. 러닝 기록을 마친 직후(자동 저장 후) 앱 프로세스가 살아 있을 때 확인하고, **Keep database connections open**(자물쇠 아이콘)을 켜 둡니다.
+- Android Studio의 **App Inspection → Database Inspector**에서 `running.db`(러닝), `interval.db`(인터벌)를 엽니다.
+- Room은 DB를 처음 쓸 때 열기 때문에, 앱이 DB에 접근하기 전에는 `(closed)`로 표시되고 조회할 수 없습니다. 러닝은 기록을 마친 직후(자동 저장 후), 인터벌은 운동을 시작한 뒤 앱 프로세스가 살아 있을 때 확인하고, **Keep database connections open**(자물쇠 아이콘)을 켜 둡니다.
 
 ## 프로젝트 구조
 패키지 루트는 `com.beeeam` 입니다.
@@ -55,6 +55,7 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 - `:feature` (`com.beeeam.feature`): 화면 단위 Circuit Screen / Presenter / Ui
   - `main/`: 바텀바로 탭을 전환하는 메인 화면 (`MainScreen`, `MainTab`)
   - `timer/`: 인터벌 타이머 화면 (설정 → 준비 카운트다운 → 진행 → 완료)
+    - Presenter가 운동 기록을 시작·세트 완료·일시정지·종료 시점에 `IntervalRepository`로 자동 저장합니다. 동작은 `docs/interval-record-logic.md` 참고
   - `record/`: 러닝 측정 화면. 위치 권한을 확인·요청하고 지도에 현재 위치를 표시 (디자인 전 임시 화면)
     - `RecordMapContent`(권한 허용: 지도), `RecordPermissionContent`(거부·영구 거부 안내), `LocationPermissions.kt`(권한 목록과 권한 관련 유틸)
     - 권한 확인과 요청은 Activity가 필요하므로 Ui에서 처리하고, 결과만 `PermissionUpdated` 이벤트로 Presenter에 전달합니다. 기록 중 알림 권한(Android 13+)도 같은 방식으로, 기록을 시작할 때 Ui가 요청합니다.
@@ -64,15 +65,16 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
   - `component/`: 여러 화면에서 쓰는 공통 Composable (`WheelPicker`, `DurationPicker` 등)
   - `util/Const.kt`: 색상 상수와 피커 값 범위
 - `:domain:model`: 순수 Kotlin 도메인 모델과 계산 로직
-  - 인터벌 타이머: `IntervalConfig`, `TimerProgress`, `Phase`
+  - 인터벌 타이머: `IntervalConfig`(`completedSetsAt()`로 마친 세트 수 계산), `TimerProgress`, `Phase`, `IntervalSession`(인터벌 운동 기록)
   - 러닝 기록: `GeoPoint`(거리 계산), `LocationPoint`, `RunningSession`(일시정지마다 나뉘는 구간 목록), `RunningSummary`(경로 없는 목록용 요약), `RunningStats`, `RunningPace.kt`(페이스 계산), `LocationNoiseFilter`(GPS 노이즈 필터), `TrackingState`(기록 상태). 자세한 동작은 `docs/running-record-logic.md` 참고
-- `:domain:repository`: Repository 등 다른 계층이 구현하는 인터페이스 (`LocationRepository`, `RunningTracker`, `RunningRepository`). `Flow`를 쓰므로 `kotlinx-coroutines-core`를 `api`로 의존합니다.
+- `:domain:repository`: Repository 등 다른 계층이 구현하는 인터페이스 (`LocationRepository`, `RunningTracker`, `RunningRepository`, `IntervalRepository`). `Flow`를 쓰므로 `kotlinx-coroutines-core`를 `api`로 의존합니다.
 - `:domain:usecase`: UseCase (현재 비어 있음)
 - `:data:local` (`com.beeeam.data.local`): 기기 안의 데이터를 다루는 구현. 책임별로 패키지를 나눕니다.
   - `location/`: `LocationRepositoryImpl` (`FusedLocationProviderClient`로 현재 위치 조회와 연속 위치 업데이트). 위치 권한도 이 모듈의 manifest에 선언합니다.
-  - `db/`: Room 기록 저장. 운동 종류별로 DB를 따로 둡니다. (러닝 `RunningDatabase`(`running.db`), 인터벌은 #27에서 `IntervalDatabase`로 추가 예정)
+  - `db/`: Room 기록 저장. 운동 종류별로 DB를 따로 둡니다. (러닝 `RunningDatabase`(`running.db`), 인터벌 `IntervalDatabase`(`interval.db`))
     - `RunningDatabase` + `RunningDatabaseProviders`(`@BindingContainer`로 DB 싱글톤과 DAO를 그래프에 제공), `RunningSessionDao`, `RunningSessionEntity`·`LocationPointEntity`
     - `RunningRepositoryImpl`: 도메인 모델 ↔ 엔티티 변환. 목록(`summaries()`)은 경로 없이, 상세(`session(id)`)는 경로까지 읽습니다.
+    - `IntervalDatabase` + `IntervalDatabaseProviders`, `IntervalSessionDao`, `IntervalSessionEntity`, `IntervalRepositoryImpl`. DB를 열 때(`onOpen`) 강제 종료로 진행 중으로 남은 기록을 마지막 저장 시각으로 마무리합니다.
     - 테이블을 바꾸면 DB `version`을 올리고 마이그레이션을 추가합니다.
   - 패키지가 커지면 별도 모듈로 분리합니다. 구현체는 `@ContributesBinding`으로만 연결되므로 feature·domain 코드는 바뀌지 않습니다.
 - `:data:remote`: 서버 통신 구현 (현재 비어 있음). GPS처럼 기기에서 얻는 데이터는 여기가 아니라 `:data:local`에 둡니다.
@@ -84,6 +86,7 @@ Windows(PowerShell)에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니�
 로직의 동작과 설계 이유를 정리한 문서입니다. 해당 로직을 쓰거나 수정하는 작업을 시작하기 전에 먼저 읽습니다.
 
 - `docs/running-record-logic.md`: 러닝 기록 로직. 구간(일시정지) 처리, 거리·페이스 계산, GPS 노이즈 필터와 기준값, 기록 상태와 `RunningTracker`, 포그라운드 Service와 복구 정책, 기록 저장(테이블 구조, 자동 저장)
+- `docs/interval-record-logic.md`: 인터벌 기록 로직. 마친 세트 기준, 저장 시점, 테이블 구조, 강제 종료로 남은 기록 정리, 다른 탭에 있을 때의 한계
 
 문서에 정리된 로직을 바꾸면 문서도 함께 갱신합니다. 문서 갱신은 로직을 바꾼 커밋에 함께 넣습니다.
 

@@ -23,6 +23,21 @@ data class IntervalConfig(
         get() = workDuration * sets + restDuration * (sets - 1)
 
     /**
+     * 시작 후 [elapsed] 만큼 지났을 때 마친 세트 수.
+     *
+     * 세트의 운동 구간이 끝나면 마친 것으로 본다. 마지막 세트 뒤에는 휴식이 없고,
+     * 운동을 끝내고 쉬는 중에 그만둬도 그 세트는 한 것으로 보는 것이 자연스럽기 때문이다.
+     */
+    fun completedSetsAt(elapsed: Duration): Int {
+        val progress = progressAt(elapsed)
+        return when (progress.phase) {
+            Phase.WORK -> progress.currentSet - 1
+            Phase.REST -> progress.currentSet
+            Phase.FINISHED -> sets
+        }
+    }
+
+    /**
      * 시작 후 [elapsed] 만큼 지났을 때의 진행 상태.
      *
      * 페이즈 경계 시점은 다음 페이즈로 본다. (운동 종료 시점 = 휴식 시작)
